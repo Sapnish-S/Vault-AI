@@ -6,3 +6,5 @@ pdfplumber
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
+sqlalchemy
+aiosqlite
