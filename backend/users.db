@@ -1,0 +1,10 @@
+create database users;
+
+create table users( 
+    userid int(10) UNSIGNED AUTO_INCREMENT primary key,
+    lname varchar(45) not null
+    fname varchar(45) not null
+    email varchar(100) not null
+    password_hash varchar(255) not null,
+);
+
