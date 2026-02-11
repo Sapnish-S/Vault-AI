@@ -15,9 +15,35 @@ export default function App() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         console.log("Login attempt:", { userId, password });
+
+        try {
+            const response = await fetch("http://localhost:8000/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username: userId, // Mapping userId to username
+                    password: password,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Login successful:", data);
+                alert(`Login successful! Welcome ${data.username}`);
+                // Here you would typically store the token/user info in context/local storage
+            } else {
+                const data = await response.json();
+                alert(`Login failed: ${data.detail || "Unknown error"}`);
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            alert("Login failed due to a network error.");
+        }
     };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -389,7 +415,7 @@ export default function App() {
                                                             setUserId(e.target.value)
                                                         }
                                                         className="glass-input w-full px-4 py-3 bg-white/[0.02] border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:bg-white/[0.04] transition-all duration-300"
-                                                        placeholder="Enter your user ID"
+                                                        placeholder="Enter your username or email"
                                                     />
                                                     <div className="input-glow" />
                                                 </div>
