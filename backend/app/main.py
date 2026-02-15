@@ -1,8 +1,18 @@
+import os
+import shutil
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import router as auth_router
 from app.database import init_db
 import contextlib
+from pathlib import Path
+from fastapi import UploadFile, File, Form, HTTPException
+
+from app.services.chunking_service import ChunkingService
+from app.services.pdf_service import PDFProcessor
+from app.services.vector_db_service import VectorDBService
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,6 +39,46 @@ app.add_middleware(
 
 app.include_router(auth_router.router, prefix="/auth", tags=["auth"])
 
+# We will initilize once at startup to keep the AI model in memory
+CHUNK_SERVICE= ChunkingService(chunk_size=800, chunk_overlap=150)
+PDF_PROCESSOR= PDFProcessor(chunking_service=CHUNK_SERVICE)
+VECTOR_SERVICE= VectorDBService()
+
+# "Temp" Safeguard
+TEMP_DIR= Path("temp")
+TEMP_DIR.mkdir(exist_ok=True)
+
+@app.post("/upload")
+async def upload_document(
+        file: UploadFile= File(...),
+        domain:str= Form(...)
+):
+    temp_path= TEMP_DIR/ file.filename
+
+    try:
+        ''' "wb" means write-binary. Shutill handles the stram efficiently.'''
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Convert PDF to structured chunks
+        processed_chunks= PDF_PROCESSOR.process_pdf(str(temp_path), domain)
+        if not processed_chunks:
+            raise HTTPException(status_code=400, detail="PDF contained no extractable text.")
+
+        # Ingest into ChromaDB(using 'domain' as our vault/collection name)
+        VECTOR_SERVICE.add_to_vault(vault_name=domain, processed_chunks=processed_chunks)
+        return{
+            "status": "success",
+            "filename": file.filename,
+            "chunks_count": len(processed_chunks),
+            "vault": domain
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+    finally:
+        if temp_path.exists():
+            os.remove(temp_path)
+            print(f"Temp file cleaned:{temp_path}")
 @app.get("/")
 def read_root():
     return {"message": "Vault AI Backend is running"}
