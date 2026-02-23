@@ -44,3 +44,6 @@ Thumbs.db
 
 # Vite
 .vite/
+
+# Binary files
+*.bin
