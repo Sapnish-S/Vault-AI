@@ -1,7 +1,7 @@
 
-  # Design Vault AI Login Page
+  # Build AI Assistant Interface
 
-  This is a code bundle for Design Vault AI Login Page. The original project is available at https://www.figma.com/design/aZ7TlipLBvMoJL7ZQ71E9Z/Design-Vault-AI-Login-Page.
+  This is a code bundle for Build AI Assistant Interface. The original project is available at https://www.figma.com/design/wNnsL4ZqcublQXLIYl71H9/Build-AI-Assistant-Interface.
 
   ## Running the code
 
