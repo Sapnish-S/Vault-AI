@@ -51,3 +51,35 @@ class VectorDBService:
             metadatas= metadatas
         )
         print(f"SSuccessfully added {len(documents)} chunks to vault: {vault_name}")
+
+    def search_vault(self, vault_name:str, query_text:str, n_results: int=5):
+        try:
+            # Access the specific vault
+            collection= self.get_or_create_vault(vault_name)
+
+            #Perform the semantic search
+            results= collection.query(
+                query_texts=[query_text],
+                n_results=n_results
+            )
+            # We have to turn nested list into a clean list of dicts
+            formatted_results=[]
+            # results['documents'][0] contains the text
+            # results['metadatas'][0] contains the source/page
+            # results['distances'][0] is the "distance" (lower = more similar)
+            list_of_docs= results['documents'][0]
+            list_of_metadatas= results['metadatas'][0]
+            list_of_dists= results['distances'][0]
+            if not results['documents'] or not results['documents'][0]:
+                return []
+            for doc, meta, dist in zip(list_of_docs, list_of_metadatas, list_of_dists):
+                formatted_results.append({
+                    "content": doc,
+                    "metadata": meta,
+                    "score": round(1-dist,4)
+                })
+            return formatted_results
+
+        except Exception as e:
+            print(f"Search failed:{e}")
+            return[]
