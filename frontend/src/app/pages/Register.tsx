@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
-import logoImage from '../../assets/f09d35d2a36198da53b0acfce21e5edd41e4c782.png';
+import { SanctuaryBackground } from '../components/SanctuaryBackground';
 
 export const Register: React.FC = () => {
   const [firstName, setFirstName] = useState('');
@@ -12,85 +12,30 @@ export const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
     if (password !== confirmPassword) {
-      setError('Passwords do not match!');
+      alert('Passwords do not match!');
       return;
     }
     if (!agreedToTerms) {
-      setError('Please agree to the Terms of Service and Privacy Policy');
+      alert('Please agree to the Terms of Service and Privacy Policy');
       return;
     }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('http://127.0.0.1:8000/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: email,
-          password: password,
-          first_name: firstName,
-          last_name: lastName,
-          email: email
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Registration failed');
-      }
-
-      // Registration successful! Navigate to dashboard (or login)
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    // Mock registration - navigate to dashboard
+    navigate('/dashboard');
   };
 
   return (
     <div className="relative w-full min-h-screen flex bg-black text-white overflow-hidden font-sans">
 
-      {/* Spline 3D Animation Background */}
-      <div className="absolute inset-0 w-full h-full z-0">
-        <iframe
-          src="https://my.spline.design/blackabstractart-LSnH96VuAI86os4UR4GXW6dG/"
-          frameBorder="0"
-          width="100%"
-          height="100%"
-          className="w-full h-full"
-        />
-        {/* Hide Spline Watermark */}
-        <style>{`
-          iframe {
-            pointer-events: none;
-          }
-          iframe body {
-            overflow: hidden !important;
-          }
-        `}</style>
-        <div className="absolute bottom-0 right-0 w-48 h-16 bg-black z-10"></div>
-      </div>
+      {/* Code-Generated Dynamic Background */}
+      <SanctuaryBackground />
 
-      {/* Left Section - Glass Floating Elements (40-45%) */}
-      <div className="hidden lg:flex lg:w-[42%] relative items-center justify-center z-10">
-
-      </div>
-
-      {/* Right Section - Register Card (55-60%) */}
-      <div className="flex-1 lg:w-[58%] flex items-center justify-center px-6 py-12 relative">
+      {/* Register Card Container */}
+      <div className="relative w-full h-full z-10 flex items-center justify-center px-6 py-12">
 
         {/* Register Card */}
         <div className="relative w-full max-w-[450px]">
@@ -123,11 +68,6 @@ export const Register: React.FC = () => {
             </div>
 
             {/* Spacing */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center relative z-10">
-                {error}
-              </div>
-            )}
 
 
             {/* Form */}
@@ -322,9 +262,8 @@ export const Register: React.FC = () => {
                     inset 0px -1px 1px rgba(0, 0, 0, 0.2)
                   `;
                 }}
-                disabled={isLoading}
               >
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+                Create Account
               </button>
             </form>
 

@@ -1,99 +1,28 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import bgImage from '../../assets/32b5adc24d802aa47887feab8f75626ce1822581.png';
-import logoImage from '../../assets/2dc092ee03f319cd3f20c442aee8da480f076515.png';
+import { Eye, EyeOff } from 'lucide-react';
+import { SanctuaryBackground } from '../components/SanctuaryBackground';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('http://127.0.0.1:8000/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username: email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      // const data = await response.json();
-      // On success
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    // Mock login - navigate to dashboard
+    navigate('/dashboard');
   };
 
   return (
     <div className="relative w-full min-h-screen flex bg-black text-white overflow-hidden font-sans">
 
-      {/* Spline 3D Animation Background */}
-      <div className="absolute inset-0 w-full h-full z-0">
-        <iframe
-          src="https://my.spline.design/blackabstractart-LSnH96VuAI86os4UR4GXW6dG/"
-          frameBorder="0"
-          width="100%"
-          height="100%"
-          className="w-full h-full"
-        />
-        {/* Hide Spline Watermark */}
-        <style>{`
-          iframe {
-            pointer-events: none;
-          }
-          iframe body {
-            overflow: hidden !important;
-          }
-        `}</style>
-        <div className="absolute bottom-0 right-0 w-48 h-16 bg-black z-10"></div>
-      </div>
+      {/* Code-Generated Dynamic Background */}
+      <SanctuaryBackground />
 
-      {/* Left Section - Glass Floating Elements (40-45%) */}
-      <div className="hidden lg:flex lg:w-[42%] relative items-center justify-center z-10">
-
-        {/* Environmental Radial Lights */}
-        <div className="absolute inset-0 pointer-events-none">
-
-          <div className="absolute top-[45%] left-[60%] w-[250px] h-[250px]"
-            style={{
-              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
-              filter: 'blur(50px)',
-            }}
-          />
-
-
-        </div>
-
-        {/* Floating Logo with Glow */}
-        <div className="relative z-10 flex flex-col items-center">
-          {/* Logo Glow Background */}
-
-
-          {/* Logo Image */}
-
-        </div>
-
-      </div>
-
-      {/* Right Section - Login Card (55-60%) */}
-      <div className="flex-1 lg:w-[58%] flex items-center justify-center px-6 py-12">
+      {/* Login Card Container */}
+      <div className="relative w-full h-full z-10 flex items-center justify-center px-6 py-12">
 
         {/* Login Card */}
         <div className="relative w-full max-w-[450px]">
@@ -126,11 +55,6 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Spacing */}
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm text-center relative z-10">
-                {error}
-              </div>
-            )}
 
 
             {/* Form */}
@@ -232,9 +156,8 @@ export const Login: React.FC = () => {
                     inset 0px -1px 1px rgba(0, 0, 0, 0.2)
                   `;
                 }}
-                disabled={isLoading}
               >
-                {isLoading ? 'Signing In...' : 'Sign In'}
+                Sign In
               </button>
             </form>
 
