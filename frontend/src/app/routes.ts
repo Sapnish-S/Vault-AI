@@ -1,19 +1,4 @@
-import { createBrowserRouter } from 'react-router';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { Dashboard } from './pages/Dashboard';
-
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    Component: Login,
-  },
-  {
-    path: '/register',
-    Component: Register,
-  },
-  {
-    path: '/dashboard',
-    Component: Dashboard,
-  },
-]);
+// This file is intentionally empty.
+// The routing logic has moved to routes.tsx (JSX requires .tsx extension).
+// See: src/app/routes.tsx
+export { };
