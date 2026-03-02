@@ -9,7 +9,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ recentChats }) => {
   return (
-    <div className="relative flex flex-col w-72 h-full z-20 border-r border-vault-border bg-[#050505]/60 backdrop-blur-xl">
+    <div className="relative flex flex-col w-72 h-full z-20 border-r border-white/5 bg-[#020204]/20 backdrop-blur-xl">
       {/* Header Area */}
       <div className="flex items-center justify-between px-5 py-4">
         <Logo />

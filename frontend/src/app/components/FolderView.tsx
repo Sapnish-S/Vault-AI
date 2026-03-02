@@ -1,14 +1,15 @@
 import React from 'react';
-import { FileText, X } from 'lucide-react';
+import { FileText, X, Sparkles } from 'lucide-react';
 import { Document } from '../types';
 
 interface FolderViewProps {
   folderName: string;
   documents: Document[];
   onClose: () => void;
+  onStartChat: () => void;
 }
 
-export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, onClose }) => {
+export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, onClose, onStartChat }) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-start pt-12 px-8 animate-[fadeIn_0.4s_ease-out]">
       
@@ -86,24 +87,16 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, o
               Add More
             </button>
             <button
-              className="px-6 py-2.5 rounded-xl font-light text-sm transition-all duration-300"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: 'rgba(255, 255, 255, 0.8)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+              onClick={onStartChat}
+              className="group relative px-8 py-3 bg-blue-900/20 hover:bg-blue-800/30 text-blue-50 rounded-xl font-medium tracking-wide transition-all duration-500 border border-white/10 hover:border-white/20 backdrop-blur-xl shadow-[0_0_20px_rgba(30,58,138,0.2)] hover:shadow-[0_0_35px_rgba(59,130,246,0.3)] overflow-hidden"
             >
-              Start Conversation
+              {/* Glass reflection effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent opacity-100 transition-opacity duration-500" />
+              <div className="absolute -inset-full top-0 block h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 group-hover:animate-shine" />
+              
+              <span className="relative z-10 flex items-center justify-center">
+                  Start Conversation
+              </span>
             </button>
           </div>
         </div>
