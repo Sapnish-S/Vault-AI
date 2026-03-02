@@ -1,18 +1,56 @@
-import React from 'react';
-import { FileText, X, Sparkles } from 'lucide-react';
+import React, { useRef } from 'react';
+import { FileText, X, Loader2, ArrowLeft } from 'lucide-react';
 import { Document } from '../types';
 
 interface FolderViewProps {
   folderName: string;
   documents: Document[];
+  isUploading?: boolean;
   onClose: () => void;
   onStartChat: () => void;
+  onAddFile?: (file: File) => void;
 }
 
-export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, onClose, onStartChat }) => {
+export const FolderView: React.FC<FolderViewProps> = ({
+  folderName,
+  documents,
+  isUploading = false,
+  onClose,
+  onStartChat,
+  onAddFile
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onAddFile) {
+      onAddFile(file);
+    }
+    // reset so the same file can be picked again if needed
+    e.target.value = '';
+  };
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-start pt-12 px-8 animate-[fadeIn_0.4s_ease-out]">
-      
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        accept=".pdf"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Back/Close Button - Top Left */}
+      <button
+        onClick={onClose}
+        className="absolute top-8 left-12 flex items-center gap-2 px-4 py-2 rounded-full text-white/50 hover:text-white hover:bg-white/5 transition-colors duration-300 font-medium tracking-wide text-sm"
+      >
+        <ArrowLeft size={18} />
+        Back to Dashboard
+      </button>
+
       {/* Close Button - Top Right */}
       <button
         onClick={onClose}
@@ -67,24 +105,35 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, o
           {/* Bottom Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-white/5 relative z-10">
             <button
-              className="px-6 py-2.5 rounded-xl font-light text-sm transition-all duration-300"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-light text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: 'rgba(255, 255, 255, 0.8)',
               }}
               onMouseEnter={(e) => {
+                if (isUploading) return;
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
                 e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.1)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
+                if (isUploading) return;
                 e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
                 e.currentTarget.style.boxShadow = 'none';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              Add More
+              {isUploading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin text-blue-300" />
+                  Uploading...
+                </>
+              ) : (
+                'Add More'
+              )}
             </button>
             <button
               onClick={onStartChat}
@@ -93,9 +142,9 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, o
               {/* Glass reflection effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent opacity-100 transition-opacity duration-500" />
               <div className="absolute -inset-full top-0 block h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 group-hover:animate-shine" />
-              
+
               <span className="relative z-10 flex items-center justify-center">
-                  Start Conversation
+                Start Conversation
               </span>
             </button>
           </div>
