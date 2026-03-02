@@ -1,17 +1,23 @@
 import os
 import shutil
 
-from fastapi import FastAPI
+from fastapi import FastAPI, requests
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import router as auth_router
 from app.database import init_db
 import contextlib
 from pathlib import Path
 from fastapi import UploadFile, File, Form, HTTPException
-
+from playwright.sync_api import expect
+from pydantic import BaseModel
 from app.services.chunking_service import ChunkingService
 from app.services.pdf_service import PDFProcessor
 from app.services.vector_db_service import VectorDBService
+
+class QueryRequest(BaseModel):
+    query:str
+    vault_name:str
+
 
 
 @contextlib.asynccontextmanager
@@ -79,6 +85,36 @@ async def upload_document(
         if temp_path.exists():
             os.remove(temp_path)
             print(f"Temp file cleaned:{temp_path}")
+
+@app.post("/chat/query")
+async def chat_query(request:QueryRequest)->dict:
+    try:
+        results= VECTOR_SERVICE.search_vault(
+            vault_name= request.vault_name,
+            query_text=request.query
+        )
+
+        if not results:
+            return{
+                "status":"success",
+                "message":"No relevant documents found.",
+                "results":[]
+            }
+        context_block= "\n\n".join([res["content"] for res in results])
+        return{
+            "status":"success",
+            "query":request.query,
+            "vault":request.vault_name,
+            "response":f"Found {len(results)} relevant sections.",
+            "context": context_block,
+            "sources":results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An internal error occurred.")
+
+    
+
+
 @app.get("/")
 def read_root():
     return {"message": "Vault AI Backend is running"}
