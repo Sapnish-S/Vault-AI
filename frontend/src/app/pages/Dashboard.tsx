@@ -115,10 +115,12 @@ export const Dashboard: React.FC = () => {
 
       if (res.status === 409) {
         setUploadError(data.detail);
+        alert(`Upload Failed: ${data.detail}`);
         return;
       }
       if (!res.ok) {
         setUploadError(data.detail || 'Upload failed. Please try again.');
+        alert(`Upload Failed: ${data.detail || 'Upload failed. Please try again.'}`);
         return;
       }
 
@@ -127,7 +129,9 @@ export const Dashboard: React.FC = () => {
       const updatedFiles = await fetchVaultFiles(vaultName);
       setFolderFiles(updatedFiles);
     } catch {
-      setUploadError('Unable to reach the server. Is the backend running?');
+      const errorMsg = 'Unable to reach the server. Is the backend running?';
+      setUploadError(errorMsg);
+      alert(errorMsg);
     } finally {
       setUploadingVault(null);
     }
@@ -206,7 +210,10 @@ export const Dashboard: React.FC = () => {
         )}
 
         {viewState === 'chat' && (
-          <ChatInterface onBack={() => setViewState('home')} />
+          <ChatInterface
+            onBack={() => setViewState('home')}
+            vaultName={selectedFolder?.name || ''}
+          />
         )}
 
         {viewState === 'home' && (

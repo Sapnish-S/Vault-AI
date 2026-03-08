@@ -14,12 +14,13 @@ from pydantic import BaseModel
 from app.services.chunking_service import ChunkingService
 from app.services.pdf_service import PDFProcessor
 from app.services.vector_db_service import VectorDBService
+from app.services.llm_service import LLMService
 
 
 class QueryRequest(BaseModel):
     query: str
     vault_name: str
-
+ 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,6 +51,9 @@ app.include_router(auth_router.router, prefix="/auth", tags=["auth"])
 CHUNK_SERVICE = ChunkingService(chunk_size=800, chunk_overlap=150)
 PDF_PROCESSOR = PDFProcessor(chunking_service=CHUNK_SERVICE)
 VECTOR_SERVICE = VectorDBService()
+
+# Lazily initialized to prevent process lock errors during Uvicorn hot-reloads
+LLM_SERVICE = None
 
 # Temp upload dir
 TEMP_DIR = Path("temp")
@@ -207,11 +211,22 @@ async def chat_query(request: QueryRequest) -> dict:
                 "results": []
             }
         context_block = "\n\n".join([res["content"] for res in results])
+        
+        global LLM_SERVICE
+        if LLM_SERVICE is None:
+            LLM_SERVICE = LLMService()
+            
+        # Generate answer using LLM
+        generated_response = LLM_SERVICE.generate_answer(
+            query=request.query, 
+            context=context_block
+        )
+
         return {
             "status": "success",
             "query": request.query,
             "vault": request.vault_name,
-            "response": f"Found {len(results)} relevant sections.",
+            "response": generated_response,
             "context": context_block,
             "sources": results
         }
