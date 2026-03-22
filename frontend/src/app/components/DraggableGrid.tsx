@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-export const DraggableGrid: React.FC = () => {
+export const DraggableGrid: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
   const [position, setPosition] = useState({ x: 0, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -60,8 +60,8 @@ export const DraggableGrid: React.FC = () => {
                 width="1600"
                 height="1.875"
                 transform={`translate(-17 ${yPos})`}
-                fill="white"
-                fillOpacity="0.01"
+                fill={isDark ? "white" : "black"}
+                fillOpacity={isDark ? "0.01" : "0.03"}
               />
             );
           })}

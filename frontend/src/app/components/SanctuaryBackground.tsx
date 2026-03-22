@@ -2,7 +2,7 @@ import React from 'react';
 
 export const SanctuaryBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 w-full h-full z-0 overflow-hidden bg-black">
+    <div className="fixed inset-0 w-full h-full z-0 overflow-hidden bg-[#05070A]">
       {/* 
         [비디오 배경 설정]
         사용자가 지정한 동영상 파일이 원본 화질 그대로 배경에 재생됩니다.

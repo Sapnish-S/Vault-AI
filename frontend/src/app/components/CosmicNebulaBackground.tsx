@@ -24,19 +24,9 @@ export const CosmicNebulaBackground: React.FC = () => {
     resize();
 
     // --- Configuration ---
-    const starCount = 300;
     const mistLayers = 20;
 
     // --- State ---
-    const stars: {
-      x: number;
-      y: number;
-      size: number;
-      baseAlpha: number;
-      phase: number;
-      speed: number;
-    }[] = [];
-
     const mists: {
       x: number;
       y: number;
@@ -61,20 +51,7 @@ export const CosmicNebulaBackground: React.FC = () => {
     ];
 
     const init = () => {
-      // 1. Stars (Tiny particles)
-      stars.length = 0;
-      for (let i = 0; i < starCount; i++) {
-        stars.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          size: Math.random() < 0.98 ? Math.random() * 1.5 : Math.random() * 3, // mostly tiny, few bright
-          baseAlpha: Math.random() * 0.8 + 0.2,
-          phase: Math.random() * Math.PI * 2,
-          speed: Math.random() * 0.05,
-        });
-      }
-
-      // 2. Nebula Mist (Large soft overlapping shapes)
+      // Nebula Mist (Large soft overlapping shapes)
       mists.length = 0;
       for (let i = 0; i < mistLayers; i++) {
         const color = mistPalette[Math.floor(Math.random() * mistPalette.length)];
@@ -100,8 +77,11 @@ export const CosmicNebulaBackground: React.FC = () => {
     const render = () => {
       time += 0.01;
       
-      // Clear to deep black
-      ctx.fillStyle = '#000000';
+      // Reset composite operation to normal before clearing
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // Clear to a very slightly lighter dark shade instead of pure black
+      ctx.fillStyle = '#05070A';
       ctx.fillRect(0, 0, width, height);
 
       // --- Draw Nebula Mist (Background) ---
@@ -140,48 +120,63 @@ export const CosmicNebulaBackground: React.FC = () => {
 
       // --- Volumetric Beams (Subtle Rays) ---
       // Simulating light shafts using large rotated gradients
-      ctx.globalCompositeOperation = 'lighter';
-      const beamCount = 3;
-      for (let i = 0; i < beamCount; i++) {
-          ctx.save();
-          // Beams originating from top-centerish or drifting
-          const angle = Math.PI / 4 + Math.sin(time * 0.5 + i) * 0.2; // Slight sway
-          const beamWidth = 200 + Math.sin(time + i) * 50;
-          
-          ctx.translate(width / 2 + (i - 1) * 300, -100);
-          ctx.rotate(angle);
-          
-          const beamGrad = ctx.createLinearGradient(0, 0, 0, height * 1.5);
-          beamGrad.addColorStop(0, 'rgba(200, 230, 255, 0.03)');
-          beamGrad.addColorStop(0.5, 'rgba(100, 150, 255, 0.01)');
-          beamGrad.addColorStop(1, 'rgba(0,0,0,0)');
-          
-          ctx.fillStyle = beamGrad;
-          ctx.fillRect(-beamWidth / 2, 0, beamWidth, height * 1.5);
-          ctx.restore();
-      }
+      // --- Cinematic Volumetric Beams (Improved) ---
+ctx.globalCompositeOperation = 'screen'; // lighter보다 부드럽게 겹치는 screen 모드 권장
 
-      // --- Draw Stars (Foreground) ---
-      ctx.globalCompositeOperation = 'source-over'; // Sharp stars
-      
-      stars.forEach(star => {
-        // Twinkle
-        const opacity = star.baseAlpha + Math.sin(time * 2 + star.phase) * 0.3;
-        const finalOpacity = Math.max(0, Math.min(1, opacity));
+const beamCount = 3;
+for (let i = 0; i < beamCount; i++) {
+    ctx.save();
+    
+    // 빛의 근원지와 각도 설정
+    const originX = width * 0.3 + (i * width * 0.2);
+    const originY = -150;
+    
+    // 깜빡임 해결: 시간(time)을 활용한 부드러운 사인파 조도
+    const softFlicker = 0.7 + Math.sin(time * 0.5 + i * 2) * 0.2; 
+    const sway = Math.sin(time * 0.2 + i) * 0.1; // 아주 천천히 흔들림
+    
+    ctx.translate(originX, originY);
+    ctx.rotate(Math.PI / 4 + sway);
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${finalOpacity})`;
+    const baseWidth = 400 + i * 100;
+
+    // 1. 외곽 글로우 (넓고 연하게)
+    const glowGrad = ctx.createLinearGradient(0, 0, 0, height * 1.5);
+    glowGrad.addColorStop(0, `rgba(130, 180, 255, ${0.08 * softFlicker})`);
+    glowGrad.addColorStop(0.5, `rgba(100, 150, 255, ${0.02 * softFlicker})`);
+    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.moveTo(-baseWidth / 2, 0);
+    ctx.lineTo(baseWidth / 2, 0);
+    ctx.lineTo(baseWidth * 1.8, height * 1.5); // 아래로 갈수록 퍼지게
+    ctx.lineTo(-baseWidth * 0.8, height * 1.5);
+    ctx.fill();
+
+    // 2. 중심 코어 (좁고 선명하게)
+    const coreGrad = ctx.createLinearGradient(0, 0, 0, height * 1.2);
+    coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.15 * softFlicker})`);
+    coreGrad.addColorStop(0.3, `rgba(180, 220, 255, ${0.05 * softFlicker})`);
+    coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    ctx.fillStyle = coreGrad;
+    ctx.fillRect(-baseWidth / 15, 0, baseWidth / 7.5, height * 1.2);
+
+    // 3. 대기 입자 효과 (Dust Particles)
+    // 빛 줄기 안에서만 먼지가 보이도록 간단히 구현
+    for (let j = 0; j < 5; j++) {
+        const px = (Math.random() - 0.5) * baseWidth;
+        const py = Math.random() * height;
+        const pSize = Math.random() * 1.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * softFlicker})`;
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
         ctx.fill();
+    }
 
-        // Glow for larger stars
-        if (star.size > 2) {
-            ctx.fillStyle = `rgba(200, 220, 255, ${finalOpacity * 0.2})`;
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size * 4, 0, Math.PI * 2);
-            ctx.fill();
-        }
-      });
+    ctx.restore();
+}
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -195,7 +190,7 @@ export const CosmicNebulaBackground: React.FC = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-0 bg-black overflow-hidden pointer-events-none select-none">
+    <div className="absolute inset-0 z-0 bg-[#05070A] overflow-hidden pointer-events-none select-none">
       <canvas 
         ref={canvasRef} 
         className="block w-full h-full"

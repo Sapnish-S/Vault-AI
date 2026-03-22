@@ -202,6 +202,30 @@
     background: rgba(255, 255, 255, 0.3);
   }
 
+  .vault-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(150, 150, 150, 0.1) transparent;
+  }
+
+  .vault-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .vault-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+
+  .vault-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.15);
+    border-radius: 10px;
+  }
+
+  .vault-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 150, 150, 0.25);
+  }
+
   /* Fade In Animation */
   @keyframes fadeIn {
     from {

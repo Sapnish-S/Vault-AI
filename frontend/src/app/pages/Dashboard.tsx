@@ -1,270 +1,143 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Settings, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import React, { useState } from 'react';
+import { Settings } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
 import { VaultPanel } from '../components/VaultPanel';
 import { DraggableGrid } from '../components/DraggableGrid';
 import { FolderView } from '../components/FolderView';
 import { VectorLoading } from '../components/VectorLoading';
 import { ChatInterface } from '../components/ChatInterface';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { CosmicNebulaBackground } from '../components/CosmicNebulaBackground';
-import { RECENT_CHATS } from '../constants';
-import { VaultFolder, VaultFile, Document } from '../types';
-
-const API_BASE = 'http://localhost:8000';
+import { RECENT_CHATS, VAULT_FOLDERS, FOLDER_DOCUMENTS } from '../constants';
+import { VaultFolder } from '../types';
 
 type ViewState = 'home' | 'loading' | 'chat';
 
-// Retrieve the logged-in user from localStorage
-function getUser(): { user_id: number; username: string } | null {
-  try {
-    const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
 export const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const user = getUser();
-
-  const [vaults, setVaults] = useState<VaultFolder[]>([]);
+  const [isDark, setIsDark] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<VaultFolder | null>(null);
-  const [folderFiles, setFolderFiles] = useState<VaultFile[]>([]);
   const [viewState, setViewState] = useState<ViewState>('home');
-  const [uploadingVault, setUploadingVault] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string>('');
 
-  // ── Fetch vault list from backend ────────────────────────────────────────
-  const fetchVaults = useCallback(async () => {
-    if (!user) return;
-    try {
-      const res = await fetch(`${API_BASE}/vaults?user_id=${user.user_id}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      // Map backend response to VaultFolder shape
-      setVaults(
-        data.vaults.map((v: { name: string; file_count: number }) => ({
-          id: v.name,       // vault_name is used as the unique ID
-          name: v.name,
-          itemCount: v.file_count,
-        }))
-      );
-    } catch {
-      // silently ignore network errors on load
-    }
-  }, [user?.user_id]);
-
-  useEffect(() => {
-    fetchVaults();
-  }, [fetchVaults]);
-
-  // ── Fetch files for a specific vault ────────────────────────────────────
-  const fetchVaultFiles = async (vaultName: string): Promise<VaultFile[]> => {
-    if (!user) return [];
-    try {
-      const res = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/files?user_id=${user.user_id}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.files as VaultFile[];
-    } catch {
-      return [];
-    }
-  };
-
-  // ── Create an empty vault ───────────────────────────────────────────────
-  const handleCreateVault = async (vaultName: string) => {
-    if (!user) return;
-    setUploadError('');
-    try {
-      const res = await fetch(`${API_BASE}/vaults`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vault_name: vaultName, user_id: user.user_id })
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setUploadError(data.detail || 'Failed to create vault.');
-        return;
-      }
-      await fetchVaults();
-    } catch {
-      setUploadError('Unable to reach the server.');
-    }
-  };
-
-  // ── Upload a PDF to a vault ──────────────────────────────────────────────
-  const handleAddFile = async (vaultName: string, file: File) => {
-    if (!user) return;
-    setUploadError('');
-    setUploadingVault(vaultName);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('domain', vaultName);
-      formData.append('user_id', String(user.user_id));
-
-      const res = await fetch(`${API_BASE}/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (res.status === 409) {
-        setUploadError(data.detail);
-        alert(`Upload Failed: ${data.detail}`);
-        return;
-      }
-      if (!res.ok) {
-        setUploadError(data.detail || 'Upload failed. Please try again.');
-        alert(`Upload Failed: ${data.detail || 'Upload failed. Please try again.'}`);
-        return;
-      }
-
-      // Refresh vault and file lists
-      await fetchVaults();
-      const updatedFiles = await fetchVaultFiles(vaultName);
-      setFolderFiles(updatedFiles);
-    } catch {
-      const errorMsg = 'Unable to reach the server. Is the backend running?';
-      setUploadError(errorMsg);
-      alert(errorMsg);
-    } finally {
-      setUploadingVault(null);
-    }
-  };
-
-  // ── Folder selection ─────────────────────────────────────────────────────
-  const handleFolderClick = async (folder: VaultFolder) => {
+  const handleFolderClick = (folder: VaultFolder) => {
     setSelectedFolder(folder);
-    const files = await fetchVaultFiles(folder.id);
-    setFolderFiles(files);
   };
 
   const handleCloseFolderView = () => {
     setSelectedFolder(null);
-    setFolderFiles([]);
   };
 
-  // Map VaultFile[] → Document[] for FolderView
-  const folderDocuments: Document[] = folderFiles.map((f, i) => ({
-    id: String(i),
-    name: f.filename,
-    type: 'pdf',
-  }));
+  const handleStartConversation = () => {
+    setViewState('loading');
+  };
 
-  // ── Logout ───────────────────────────────────────────────────────────────
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/');
+  const handleLoadingComplete = () => {
+    setViewState('chat');
   };
 
   return (
-    <div className="relative w-full h-screen flex bg-[#020204] text-white overflow-hidden font-sans selection:bg-cyan-500/30">
-
+    <div className={`relative w-full h-screen flex overflow-hidden font-sans transition-colors duration-700 ${isDark ? 'bg-[#05070A] text-white selection:bg-cyan-500/30' : 'bg-[#eef4f9] text-[#1e293b] selection:bg-blue-500/30'}`}>
+      
       {/* --- Full Screen Cosmic Nebula Background --- */}
-      <CosmicNebulaBackground />
+      <div className={`absolute inset-0 transition-opacity duration-700 ${isDark ? 'opacity-100' : 'opacity-0'}`}>
+        <CosmicNebulaBackground />
+      </div>
+      
+      {/* Light Mode Specific Background (Subtle Light Blue Grid/Glow) */}
+      <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 ${isDark ? 'opacity-0' : 'opacity-100'}`}>
+         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(ellipse_at_top,#c4dafc40_0%,transparent_70%)] blur-[100px]" />
+      </div>
 
       {/* Sidebar (Z-30) */}
       <div className="relative z-30 h-full">
-        <Sidebar recentChats={RECENT_CHATS} />
+        <Sidebar recentChats={RECENT_CHATS} isDark={isDark} />
       </div>
 
       {/* Main Canvas (Z-20) */}
-      <main className="flex-1 flex flex-col relative z-20 h-full p-8 md:p-12 overflow-hidden">
-
-        {/* Top Bar */}
-        <div className="absolute top-8 right-8 z-50 flex items-center gap-2">
-          {/* Upload error toast */}
-          {uploadError && (
-            <div
-              className="px-4 py-2 rounded-lg text-xs text-red-300 max-w-xs text-right animate-fade-in"
-              style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-              }}
-            >
-              {uploadError}
-              <button onClick={() => setUploadError('')} className="ml-2 text-red-400 hover:text-red-200">✕</button>
-            </div>
-          )}
-          <button
-            onClick={handleLogout}
-            title="Log out"
-            className="p-3 rounded-full text-white/30 hover:text-red-400 hover:bg-white/10 transition-all duration-500 backdrop-blur-md border border-white/5 group"
-          >
-            <LogOut size={18} />
-          </button>
-          <button className="p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all duration-500 backdrop-blur-md border border-white/5 group">
+      <main className="flex-1 flex flex-col relative z-20 h-full p-12 overflow-hidden">
+        
+        {/* Top Bar: Settings & Theme Toggle */}
+        <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
+          <ThemeToggle isDark={isDark} onToggle={setIsDark} />
+          <button className={`p-3 rounded-full transition-all duration-500 backdrop-blur-md border group ${
+            isDark 
+              ? 'text-white/30 hover:text-white hover:bg-white/10 border-white/5' 
+              : 'text-[#64748b] hover:text-[#0f172a] hover:bg-black/5 border-black/5'
+          }`}>
             <Settings size={20} className="group-hover:rotate-90 transition-transform duration-700" />
           </button>
         </div>
 
         {viewState === 'loading' && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <VectorLoading onComplete={() => setViewState('chat')} />
-          </div>
+            <div className={`absolute inset-0 z-40 flex items-center justify-center backdrop-blur-sm transition-colors duration-700 ${isDark ? 'bg-[#05070A]/80' : 'bg-white/80'}`}>
+                <VectorLoading onComplete={handleLoadingComplete} isDark={isDark} />
+            </div>
         )}
 
         {viewState === 'chat' && (
-          <ChatInterface
-            onBack={() => setViewState('home')}
-            vaultName={selectedFolder?.name || ''}
-          />
+            <ChatInterface onBack={() => setViewState('home')} isDark={isDark} />
         )}
 
         {viewState === 'home' && (
-          !selectedFolder ? (
+            /* Conditional Rendering: Hero Section OR Folder View */
+            !selectedFolder ? (
             <>
-              {/* Hero Section */}
-              <div className="flex flex-col items-center justify-center mt-12 mb-20 relative animate-[fadeIn_0.8s_ease-out] z-30">
-                <div className="relative flex flex-col items-center">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[150px] bg-blue-900/10 blur-[80px] rounded-full pointer-events-none" />
-                  <h1 className="relative z-10 text-center leading-tight tracking-tight drop-shadow-2xl">
-                    <span className="block font-bold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/50 tracking-tight whitespace-nowrap px-[21px] py-[0px] mx-[11px] my-[0px] text-[64px]" style={{ fontFamily: "'Source Serif 4', serif" }}>
-                      Your Private AI Assistant
-                    </span>
-                  </h1>
-                  <div className="mt-6 flex items-center gap-4 opacity-70">
-                    <div className="h-[1px] w-12 bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" />
-                    <p className="text-blue-100/80 font-light tracking-[0.4em] uppercase drop-shadow-[0_0_10px_rgba(59,130,246,0.3)] text-[8px]">
-                      Secure • Intelligent • Ethereal
-                    </p>
-                    <div className="h-[1px] w-12 bg-gradient-to-r from-transparent via-blue-400/50 to-transparent" />
-                  </div>
-                </div>
+                {/* Hero Section */}
+                <div className="flex flex-col items-center justify-center mt-2 mb-10 relative animate-[fadeIn_0.8s_ease-out] z-30">
+                    
+                    {/* Typography - Cinematic & Impactful */}
+                    <div className="relative flex flex-col items-center">
+                        {/* Subtle Text Glow for Readability */}
+                        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[150px] blur-[80px] rounded-full pointer-events-none transition-colors duration-700 ${
+                          isDark ? 'bg-blue-900/10' : 'bg-blue-300/20'
+                        }`} />
+                        
+                        <h1 className="relative z-10 text-center leading-tight tracking-tight drop-shadow-2xl">
+                            <span className={`block font-bold text-transparent bg-clip-text tracking-tight whitespace-nowrap text-[111px] mx-[11px] my-[0px] px-[21px] py-[0px] transition-all duration-700 ${
+                              isDark 
+                                ? 'bg-gradient-to-b from-white via-white to-white/50' 
+                                : 'bg-gradient-to-b from-[#0f172a] via-[#334155] to-[#64748b]'
+                            }`} style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                                Your Private AI Assistant
+                            </span>
+                        </h1>
 
+                        <div className="mt-2 flex items-center gap-4 opacity-70">
+                            <div className={`h-[1px] w-12 bg-gradient-to-r from-transparent to-transparent ${isDark ? 'via-blue-400/50' : 'via-blue-600/30'}`} />
+                            <p className={`font-light tracking-[0.4em] uppercase text-[8px] transition-colors duration-700 ${
+                              isDark 
+                                ? 'text-blue-100/80 drop-shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
+                                : 'text-blue-900/60 drop-shadow-[0_0_10px_rgba(59,130,246,0.1)]'
+                            }`}>
+                                Secure • Intelligent • Ethereal
+                            </p>
+                            <div className={`h-[1px] w-12 bg-gradient-to-r from-transparent to-transparent ${isDark ? 'via-blue-400/50' : 'via-blue-600/30'}`} />
+                        </div>
+                    </div>
+                
                 {/* Draggable Grid */}
-                <div className="mt-12 scale-90 opacity-90 hover:opacity-100 transition-opacity duration-500">
-                  <DraggableGrid />
+                <div className="mt-6 mb-6 scale-90 opacity-90 hover:opacity-100 transition-opacity duration-500">
+                    <DraggableGrid isDark={isDark} />
                 </div>
-              </div>
+            </div>
 
-              {/* Vault Panel Area */}
-              <div className="relative z-30 w-full max-w-6xl mx-auto">
-                <VaultPanel
-                  folders={vaults}
-                  onFolderClick={handleFolderClick}
-                  onCreateVault={handleCreateVault}
-                />
-              </div>
+                {/* Vault Panel Area */}
+                <div className="relative z-30 w-full max-w-6xl mx-auto pt-8">
+                    <VaultPanel folders={VAULT_FOLDERS} onFolderClick={handleFolderClick} isDark={isDark} />
+                </div>
             </>
-          ) : (
-            /* Folder View — shows real files from the backend */
+            ) : (
+            /* Folder View - Replaces Hero Section */
             <FolderView
-              folderName={selectedFolder.name}
-              documents={folderDocuments}
-              isUploading={uploadingVault === selectedFolder.name}
-              onClose={handleCloseFolderView}
-              onStartChat={() => setViewState('loading')}
-              onAddFile={(file) => handleAddFile(selectedFolder.name, file)}
+                folderName={selectedFolder.name}
+                documents={FOLDER_DOCUMENTS[selectedFolder.id] || []}
+                onClose={handleCloseFolderView}
+                onStartChat={handleStartConversation}
+                isDark={isDark}
             />
-          )
+            )
         )}
-
+        
       </main>
     </div>
   );
