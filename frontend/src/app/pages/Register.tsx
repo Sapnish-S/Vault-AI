@@ -6,26 +6,52 @@ import { SanctuaryBackground } from '../components/SanctuaryBackground';
 export const Register: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (password !== confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match!');
       return;
     }
     if (!agreedToTerms) {
-      alert('Please agree to the Terms of Service and Privacy Policy');
+      setError('Please agree to the Terms of Service and Privacy Policy');
       return;
     }
-    // Mock registration - navigate to dashboard
-    navigate('/dashboard');
+    
+    try {
+      const res = await fetch('http://127.0.0.1:8000/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+           username, 
+           password, 
+           first_name: firstName, 
+           last_name: lastName, 
+           email 
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Registration failed');
+        return;
+      }
+      
+      // Navigate to login
+      navigate('/');
+    } catch (err) {
+      setError('Network error connecting to the server');
+    }
   };
 
   return (
@@ -72,6 +98,12 @@ export const Register: React.FC = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+              
+              {error && (
+                <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-sm px-4 py-2 rounded-lg">
+                  {error}
+                </div>
+              )}
 
               {/* First Name and Last Name - Side by Side */}
               <div className="flex gap-3">
@@ -119,6 +151,30 @@ export const Register: React.FC = () => {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Username Field */}
+              <div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  className="w-full px-4 py-3 rounded-lg text-white placeholder:text-white/40 focus:outline-none transition-all"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#06B6D4';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                  required
+                />
               </div>
 
               {/* Email Field */}

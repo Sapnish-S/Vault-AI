@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
-import { Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '../components/ui/dropdown-menu';
 import { Sidebar } from '../components/Sidebar';
 import { VaultPanel } from '../components/VaultPanel';
 import { DraggableGrid } from '../components/DraggableGrid';
@@ -8,15 +15,86 @@ import { VectorLoading } from '../components/VectorLoading';
 import { ChatInterface } from '../components/ChatInterface';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { CosmicNebulaBackground } from '../components/CosmicNebulaBackground';
-import { RECENT_CHATS, VAULT_FOLDERS, FOLDER_DOCUMENTS } from '../constants';
-import { VaultFolder } from '../types';
+import { VaultFolder, ChatSession } from '../types';
+import { CreateVaultModal } from '../components/CreateVaultModal';
+import { ChatHistoryTable } from '../components/ChatHistoryTable';
 
-type ViewState = 'home' | 'loading' | 'chat';
+type ViewState = 'home' | 'loading' | 'chat' | 'past_chat' | 'chat_history';
 
 export const Dashboard: React.FC = () => {
   const [isDark, setIsDark] = useState(true);
   const [selectedFolder, setSelectedFolder] = useState<VaultFolder | null>(null);
   const [viewState, setViewState] = useState<ViewState>('home');
+  const [vaults, setVaults] = useState<VaultFolder[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [chats, setChats] = useState<ChatSession[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    navigate('/');
+  };
+
+  const fetchVaults = async (userId: number) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/vaults?user_id=${userId}`);
+      const data = await res.json();
+      if (data.vaults) {
+        setVaults(data.vaults);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchChats = async (userId: number) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/chats?user_id=${userId}`);
+      const data = await res.json();
+      if (data.chats) setChats(data.chats);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchUser = async (userId: number) => {
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/users/${userId}`);
+      const data = await res.json();
+      if (data.first_name || data.username) setCurrentUser(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const getActiveUserId = () => {
+    const userStr = sessionStorage.getItem('user');
+    return userStr ? JSON.parse(userStr).id : 1;
+  };
+
+  useEffect(() => {
+    const activeUserId = getActiveUserId();
+    
+    fetchVaults(activeUserId);
+    fetchChats(activeUserId);
+    fetchUser(activeUserId);
+  }, []);
+
+  const handleCreateVault = async (name: string) => {
+    try {
+      const activeUserId = getActiveUserId();
+      const res = await fetch('http://127.0.0.1:8000/vaults', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vault_name: name, user_id: activeUserId })
+      });
+      if (res.ok) {
+        setIsCreateModalOpen(false);
+        fetchVaults(activeUserId);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleFolderClick = (folder: VaultFolder) => {
     setSelectedFolder(folder);
@@ -27,7 +105,19 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleStartConversation = () => {
+    setSelectedChatId(null);
     setViewState('loading');
+  };
+
+  const handleHomeClick = () => {
+    setViewState('home');
+    setSelectedFolder(null);
+    setSelectedChatId(null);
+  };
+
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChatId(chatId);
+    setViewState('past_chat');
   };
 
   const handleLoadingComplete = () => {
@@ -50,7 +140,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Sidebar (Z-30) */}
       <div className="relative z-30 h-full">
-        <Sidebar recentChats={RECENT_CHATS} isDark={isDark} />
+        <Sidebar recentChats={chats} user={currentUser} onChatSelect={handleChatSelect} onHome={handleHomeClick} onSearchClick={() => setViewState('chat_history')} isDark={isDark} />
       </div>
 
       {/* Main Canvas (Z-20) */}
@@ -59,13 +149,26 @@ export const Dashboard: React.FC = () => {
         {/* Top Bar: Settings & Theme Toggle */}
         <div className="absolute top-8 right-8 z-50 flex items-center gap-4">
           <ThemeToggle isDark={isDark} onToggle={setIsDark} />
-          <button className={`p-3 rounded-full transition-all duration-500 backdrop-blur-md border group ${
-            isDark 
-              ? 'text-white/30 hover:text-white hover:bg-white/10 border-white/5' 
-              : 'text-[#64748b] hover:text-[#0f172a] hover:bg-black/5 border-black/5'
-          }`}>
-            <Settings size={20} className="group-hover:rotate-90 transition-transform duration-700" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`p-3 rounded-full transition-all duration-500 backdrop-blur-md border group ${
+                isDark 
+                  ? 'text-white/30 hover:text-white hover:bg-white/10 border-white/5' 
+                  : 'text-[#64748b] hover:text-[#0f172a] hover:bg-black/5 border-black/5'
+              }`}>
+                <Settings size={20} className="group-hover:rotate-90 transition-transform duration-700" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className={`w-48 mt-2 shadow-xl border backdrop-blur-xl ${isDark ? 'bg-slate-900/90 border-white/10 text-white' : 'bg-white/90 border-slate-200 text-slate-800'}`}>
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                className={`cursor-pointer flex items-center gap-2 font-medium transition-colors ${isDark ? 'text-red-400 focus:bg-red-500/20 focus:text-red-400' : 'text-red-600 focus:bg-red-50 focus:text-red-600'}`}
+              >
+                <LogOut size={16} />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {viewState === 'loading' && (
@@ -75,7 +178,24 @@ export const Dashboard: React.FC = () => {
         )}
 
         {viewState === 'chat' && (
-            <ChatInterface onBack={() => setViewState('home')} isDark={isDark} />
+            <ChatInterface vaultName={selectedFolder?.name || ''} chatId={selectedChatId} isReadOnly={false} onChatUpdated={() => {
+              const userStr = localStorage.getItem('user');
+              const activeUserId = userStr ? JSON.parse(userStr).id : 1;
+              fetchChats(activeUserId);
+            }} onBack={() => setViewState('home')} isDark={isDark} />
+        )}
+
+        {viewState === 'past_chat' && (
+            <ChatInterface vaultName={""} chatId={selectedChatId} isReadOnly={true} onBack={() => setViewState('home')} isDark={isDark} />
+        )}
+
+        {viewState === 'chat_history' && (
+            <ChatHistoryTable 
+              userId={getActiveUserId()} 
+              isDark={isDark} 
+              onClose={() => setViewState('home')}
+              onChatSelect={handleChatSelect}
+            />
         )}
 
         {viewState === 'home' && (
@@ -123,20 +243,26 @@ export const Dashboard: React.FC = () => {
 
                 {/* Vault Panel Area */}
                 <div className="relative z-30 w-full max-w-6xl mx-auto pt-8">
-                    <VaultPanel folders={VAULT_FOLDERS} onFolderClick={handleFolderClick} isDark={isDark} />
+                    <VaultPanel folders={vaults} onFolderClick={handleFolderClick} onCreateVaultClick={() => setIsCreateModalOpen(true)} isDark={isDark} />
                 </div>
             </>
             ) : (
             /* Folder View - Replaces Hero Section */
             <FolderView
                 folderName={selectedFolder.name}
-                documents={FOLDER_DOCUMENTS[selectedFolder.id] || []}
                 onClose={handleCloseFolderView}
                 onStartChat={handleStartConversation}
                 isDark={isDark}
             />
             )
         )}
+        
+        <CreateVaultModal 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)} 
+          onSubmit={handleCreateVault} 
+          isDark={isDark} 
+        />
         
       </main>
     </div>

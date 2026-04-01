@@ -6,10 +6,14 @@ import profileImg from '../../assets/2be51f959d31760d9fea5b9fa18cd530ec37cff3.pn
 
 interface SidebarProps {
   recentChats: ChatSession[];
+  user?: { first_name: string; last_name: string; title: string; };
+  onChatSelect?: (chatId: string) => void;
+  onHome?: () => void;
+  onSearchClick?: () => void;
   isDark?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ recentChats, isDark = true }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelect, onHome, onSearchClick, isDark = true }) => {
   return (
     <div className="relative flex flex-col w-72 h-full z-20 p-4">
       {/* Container with VaultPanel glass styling */}
@@ -20,7 +24,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, isDark = true }) 
 
         {/* Header Area */}
         <div className="flex items-center justify-between px-6 py-5 relative z-10">
-          <Logo isDark={isDark} />
+          <div className="cursor-pointer" onClick={onHome}>
+            <Logo isDark={isDark} />
+          </div>
           <button className={`transition-colors ${isDark ? 'text-white/40 hover:text-white' : 'text-slate-400 hover:text-slate-800'}`}>
             <X size={18} />
           </button>
@@ -37,15 +43,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, isDark = true }) 
               <div className={`absolute inset-0 mix-blend-overlay pointer-events-none ${isDark ? 'bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-30' : 'bg-gradient-to-tr from-white/40 via-transparent to-transparent'}`}></div>
             </div>
             <div className="flex flex-col text-center relative z-10">
-              <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>Ari Lee</span>
-              <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>Sales Manager</span>
+              <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
+                {user ? `${user.first_name} ${user.last_name}`.trim() : 'Ari Lee'}
+              </span>
+              <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>
+                {user ? user.title : 'Sales Manager'}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Primary Actions */}
         <div className="px-6 space-y-3 mb-8 relative z-10">
-          <button className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all duration-300 border overflow-hidden ${isDark
+          <button onClick={onSearchClick} className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-full transition-all duration-300 border overflow-hidden ${isDark
             ? 'hover:bg-white/5 hover:shadow-[0_0_20px_rgba(255,51,102,0.4)] text-white/50 hover:text-white border-transparent hover:border-white/10'
             : 'hover:bg-white/60 hover:shadow-[0_4px_15px_rgba(255,51,102,0.15)] text-slate-500 hover:text-slate-800 border-transparent hover:border-white/80 bg-white/30'
             }`}>
@@ -64,7 +74,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, isDark = true }) 
           <ul className="space-y-1">
             {recentChats.map((chat) => (
               <li key={chat.id}>
-                <button className={`relative w-full text-left flex items-center justify-between px-4 py-2.5 rounded-full transition-all duration-300 group border overflow-hidden ${isDark
+                <button 
+                  title={chat.title}
+                  onClick={() => onChatSelect?.(chat.id)} 
+                  className={`relative w-full text-left flex items-center justify-between px-4 py-2.5 rounded-full transition-all duration-300 group border overflow-hidden ${isDark
                   ? 'hover:bg-white/5 hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] border-transparent hover:border-white/10 text-white/60 hover:text-white'
                   : 'hover:bg-white/60 hover:shadow-[0_4px_10px_rgba(59,130,246,0.1)] border-transparent hover:border-white/80 text-slate-600 hover:text-slate-900 bg-white/10'
                   }`}>

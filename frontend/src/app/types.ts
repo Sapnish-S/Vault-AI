@@ -2,19 +2,24 @@ export interface Chat {
   id: string;
   title: string;
   timestamp: string;
+  sender_name?: string;
+  receiver_name?: string;
+  label?: string;
+  time_frame?: string;
 }
 
 export type ChatSession = Chat;
 
 export interface VaultFolder {
-  id: string;
+  id?: string;
   name: string;
-  itemCount: number;
+  file_count: number;
   icon?: string;
 }
 
 export interface Document {
-  id: string;
-  name: string;
-  type: string;
+  id?: string;
+  filename: string;
+  type?: string;
+  uploaded_at?: string;
 }

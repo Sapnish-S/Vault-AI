@@ -1,16 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, X } from 'lucide-react';
 import { Document } from '../types';
 
 interface FolderViewProps {
   folderName: string;
-  documents: Document[];
   onClose: () => void;
   onStartChat: () => void;
   isDark?: boolean;
 }
 
-export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, onClose, onStartChat, isDark = true }) => {
+export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onStartChat, isDark = true }) => {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getActiveUserId = () => {
+    const userStr = sessionStorage.getItem('user');
+    return userStr ? JSON.parse(userStr).id : 1;
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const activeUserId = getActiveUserId();
+      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files?user_id=${activeUserId}`);
+      const data = await res.json();
+      if (data.files) {
+        setDocuments(data.files);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [folderName]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    const activeUserId = getActiveUserId();
+    formData.append('user_id', activeUserId.toString());
+    formData.append('file', file);
+    formData.append('domain', folderName);
+
+    try {
+      await fetch('http://127.0.0.1:8000/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      fetchDocuments();
+    } catch (e) {
+      console.error('Upload failed:', e);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-start pt-12 px-8 animate-[fadeIn_0.4s_ease-out]">
 
@@ -43,32 +93,45 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, documents, o
             } before:absolute before:inset-x-0 before:top-0 before:h-1/3 before:rounded-3xl before:pointer-events-none after:absolute after:inset-0 after:rounded-3xl after:pointer-events-none`}
         >
           {/* Documents List */}
-          <div className="space-y-3 mb-8 relative z-10">
-            {documents.map((doc) => (
-              <div
-                key={doc.id}
-                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 cursor-pointer group ${isDark ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
-                style={{
-                  background: 'transparent',
-                }}
-              >
-                <FileText className={`transition-colors ${isDark ? 'text-white/40 group-hover:text-white/60' : 'text-slate-400 group-hover:text-blue-500'}`} size={20} />
-                <span className={`font-light transition-colors ${isDark ? 'text-white/80 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
-                  {doc.name}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-3 mb-8 relative z-10 min-h-[100px]">
+            {documents.length === 0 ? (
+              <div className={`text-center py-8 ${isDark ? 'text-white/40' : 'text-slate-400'}`}>No documents in this vault yet.</div>
+            ) : (
+              documents.map((doc, idx) => (
+                <div
+                  key={doc.id || idx}
+                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 cursor-pointer group ${isDark ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
+                  style={{
+                    background: 'transparent',
+                  }}
+                >
+                  <FileText className={`transition-colors ${isDark ? 'text-white/40 group-hover:text-white/60' : 'text-slate-400 group-hover:text-blue-500'}`} size={20} />
+                  <span className={`font-light transition-colors ${isDark ? 'text-white/80 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                    {doc.filename}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Bottom Actions */}
           <div className={`flex justify-end gap-3 pt-4 border-t relative z-10 ${isDark ? 'border-white/5' : 'border-slate-200'}`}>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".pdf" 
+              onChange={handleFileUpload} 
+            />
             <button
-              className={`px-6 py-2.5 rounded-xl font-light text-sm transition-all duration-300 ${isDark
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={`px-6 py-2.5 rounded-xl font-light text-sm transition-all duration-300 disabled:opacity-50 ${isDark
                   ? 'bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]'
                   : 'bg-white/50 border border-white/80 text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
                 }`}
             >
-              Add More
+              {isUploading ? 'Uploading...' : 'Add More'}
             </button>
             <button
               onClick={onStartChat}

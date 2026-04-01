@@ -33,6 +33,11 @@ env/
 *.sqlite
 *.sqlite3
 
+# Local Vector DB & Temp Data
+backend/data/
+backend/temp/
+*.bin
+
 # Environment variables
 .env
 .env.local

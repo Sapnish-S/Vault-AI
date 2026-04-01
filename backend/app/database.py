@@ -38,4 +38,45 @@ async def init_db():
                 UNIQUE(user_id, vault_name, filename)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS chats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                vault_name TEXT,
+                title TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                sender_name TEXT,
+                receiver_name TEXT,
+                label TEXT,
+                time_frame TEXT
+            )
+        """)
+        
+        # Add new columns to existing table if they don't exist
+        try:
+            await db.execute("ALTER TABLE chats ADD COLUMN sender_name TEXT")
+        except:
+            pass
+        try:
+            await db.execute("ALTER TABLE chats ADD COLUMN receiver_name TEXT")
+        except:
+            pass
+        try:
+            await db.execute("ALTER TABLE chats ADD COLUMN label TEXT")
+        except:
+            pass
+        try:
+            await db.execute("ALTER TABLE chats ADD COLUMN time_frame TEXT")
+        except:
+            pass
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY(chat_id) REFERENCES chats(id)
+            )
+        """)
         await db.commit()

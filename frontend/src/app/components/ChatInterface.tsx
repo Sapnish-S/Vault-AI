@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Sparkles, ArrowLeft } from 'lucide-react';
+import { TypingIndicator } from './TypingIndicator';
 
 interface Message {
   id: string;
@@ -10,20 +11,19 @@ interface Message {
 }
 
 interface ChatInterfaceProps {
+  vaultName: string;
+  chatId?: string | null;
+  isReadOnly?: boolean;
+  onChatUpdated?: () => void;
   onBack: () => void;
   isDark?: boolean;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, isDark = true }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Vault AI secure environment initialized. Access granted to vector database. How can I assist you today?",
-      timestamp: new Date()
-    }
-  ]);
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId, isReadOnly = false, onChatUpdated, onBack, isDark = true }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(chatId || null);
   const [inputValue, setInputValue] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -31,33 +31,87 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, isDark = t
   };
 
   useEffect(() => {
+    if (chatId) {
+      setCurrentChatId(chatId);
+      fetch(`http://127.0.0.1:8000/chats/${chatId}/messages?user_id=1`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.messages) {
+                setMessages(data.messages.map((m: any) => ({
+                    id: m.id,
+                    role: m.role as 'user' | 'assistant',
+                    content: m.content,
+                    timestamp: new Date(m.timestamp)
+                })));
+            }
+        })
+        .catch(console.error);
+    } else {
+      setMessages([{
+        id: '1',
+        role: 'assistant',
+        content: "Vault AI secure environment initialized. Access granted to vector database. How can I assist you today?",
+        timestamp: new Date()
+      }]);
+    }
+  }, [chatId]);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputValue.trim()) return;
+
+    const userMessage = inputValue.trim();
 
     const newUserMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: inputValue,
+      content: userMessage,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, newUserMessage]);
     setInputValue('');
+    setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const userStr = sessionStorage.getItem('user');
+      const activeUserId = userStr ? JSON.parse(userStr).id : 1;
+
+      const res = await fetch('http://127.0.0.1:8000/chat/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMessage, vault_name: vaultName, chat_id: currentChatId ? parseInt(currentChatId) : null, user_id: activeUserId }),
+      });
+      const data = await res.json();
+      
+      if (data.chat_id && !currentChatId) {
+          setCurrentChatId(data.chat_id.toString());
+          onChatUpdated?.();
+      }
+      
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm processing your request within the secure sanctuary. Accessing encrypted nodes...",
+        content: data.response || data.message || "An error occurred while fetching the response.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiResponse]);
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Network error communicating with the Vault API.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiResponse]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -112,11 +166,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, isDark = t
                 </div>
             </motion.div>
             ))}
+            {isTyping && (
+                <motion.div
+                    key="typing"
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex w-full justify-start"
+                >
+                    <div className={`max-w-[70%] p-4 rounded-2xl backdrop-blur-md border ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'} shadow-lg`}>
+                        <TypingIndicator isDark={isDark} />
+                    </div>
+                </motion.div>
+            )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
+      {!isReadOnly && (
       <div className="mt-4 px-4 pb-2">
         <form 
             onSubmit={handleSendMessage}
@@ -161,6 +229,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, isDark = t
             </div>
         </div>
       </div>
+      )}
     </motion.div>
   );
 };

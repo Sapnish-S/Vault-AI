@@ -4,15 +4,31 @@ import { Eye, EyeOff } from 'lucide-react';
 import { SanctuaryBackground } from '../components/SanctuaryBackground';
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock login - navigate to dashboard
-    navigate('/dashboard');
+    setError('');
+    try {
+      const res = await fetch('http://127.0.0.1:8000/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Login failed');
+        return;
+      }
+      sessionStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }));
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Network error connecting to the server');
+    }
   };
 
   return (
@@ -59,14 +75,18 @@ export const Login: React.FC = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-
-              {/* Email Field */}
+              {error && (
+                <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-sm px-4 py-2 rounded-lg">
+                  {error}
+                </div>
+              )}
+              {/* Username Field */}
               <div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
                   className="w-full px-4 py-3 rounded-lg text-white placeholder:text-white/40 focus:outline-none transition-all"
                   style={{
                     background: 'rgba(255, 255, 255, 0.05)',

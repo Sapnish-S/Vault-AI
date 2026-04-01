@@ -5,10 +5,11 @@ import { VaultFolder } from '../types';
 interface VaultPanelProps {
   folders: VaultFolder[];
   onFolderClick?: (folder: VaultFolder) => void;
+  onCreateVaultClick?: () => void;
   isDark?: boolean;
 }
 
-export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, isDark = true }) => {
+export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, onCreateVaultClick, isDark = true }) => {
   return (
     <div className="w-full flex-1 flex flex-col min-h-0 relative z-40 animate-fade-in-up -mt-[80px]">
         
@@ -29,7 +30,9 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
         </div>
 
         {/* Add Button */}
-        <button className={`absolute top-6 right-6 w-12 h-12 rounded-full border flex items-center justify-center hover:scale-105 transition-all duration-300 z-20 group ${
+        <button 
+          onClick={onCreateVaultClick}
+          className={`absolute top-6 right-6 w-12 h-12 rounded-full border flex items-center justify-center hover:scale-105 transition-all duration-300 z-20 group ${
           isDark 
             ? 'border-white/20 text-white/50 hover:text-white hover:border-white/50 hover:bg-white/5' 
             : 'border-slate-300/50 text-slate-400 hover:text-slate-700 hover:border-slate-400 hover:bg-white/50 bg-white/20 shadow-sm'
@@ -40,10 +43,11 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
         {/* Content Grid */}
         <div className="w-full h-full overflow-y-auto vault-scrollbar pr-2">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-[58px] pb-12 px-2 max-w-7xl mx-auto">
-                {folders.map((folder) => {
+                {folders.map((folder, index) => {
+                    const safeId = folder.id || folder.name.replace(/\s+/g, '-').toLowerCase() + '-' + index;
                     return (
                     <div 
-                        key={folder.id}
+                        key={safeId}
                         onClick={() => onFolderClick?.(folder)}
                         className="group relative w-[90%] mx-auto aspect-[320/280] cursor-pointer transition-all duration-500 hover:-translate-y-2"
                     >
@@ -155,7 +159,7 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
                             {/* Front Glass Clip Path */}
                             <svg width="0" height="0" className="absolute">
                                 <defs>
-                                    <clipPath id={`front-tab-clip-${folder.id}`} clipPathUnits="objectBoundingBox">
+                                    <clipPath id={`front-tab-clip-${safeId}`} clipPathUnits="objectBoundingBox">
                                         <path d="M 0,1.5 L 0,0.105 C 0,0.05 0.02,0 0.052,0 L 0.38,0 C 0.43,0 0.45,0.16 0.52,0.16 L 0.948,0.16 C 0.98,0.16 1,0.18 1,0.26 L 1,1.5 Z" />
                                     </clipPath>
                                 </defs>
@@ -171,7 +175,7 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
                                 {/* The Dark Glass Body */}
                                 <div 
                                     className="absolute inset-0 backdrop-blur-[20px] rounded-b-[24px] transition-all duration-500 overflow-hidden"
-                                    style={{ clipPath: `url(#front-tab-clip-${folder.id})` }}
+                                    style={{ clipPath: `url(#front-tab-clip-${safeId})` }}
                                 >
                                     {/* Gradients matching Figma */}
                                     <div className="absolute inset-0 transition-colors duration-500 group-hover:from-[#6a6c74]/70 group-hover:via-[#3a3c42]/75 group-hover:to-[#25262a]/80" style={{ backgroundImage: "linear-gradient(153.4deg, rgba(94, 96, 103, 0.6) 0%, rgba(54, 56, 60, 0.65) 50%, rgba(33, 34, 38, 0.75) 100%)" }}></div>
@@ -213,7 +217,7 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
                                     <div className="flex items-center gap-1.5 opacity-80 mb-[-2px] ml-1">
                                         <Copy size={14} className="text-[#989ca5]" />
                                         <span className="font-medium text-[11px] lg:text-[12px] text-[#989ca5]">
-                                            {folder.itemCount * 142} Files
+                                            {folder.file_count} Files
                                         </span>
                                     </div>
                                 </div>

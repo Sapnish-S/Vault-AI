@@ -20,6 +20,12 @@ from app.services.llm_service import LLMService
 class QueryRequest(BaseModel):
     query: str
     vault_name: str
+    chat_id: int | None = None
+    user_id: int = 1
+    sender_name: str | None = None
+    receiver_name: str | None = None
+    label: str | None = None
+    time_frame: str | None = None
  
 
 @contextlib.asynccontextmanager
@@ -197,33 +203,57 @@ async def list_vault_files(vault_name: str, user_id: int = Query(...), db: aiosq
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/chat/query")
-async def chat_query(request: QueryRequest) -> dict:
+async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(get_db)) -> dict:
+    global LLM_SERVICE
     try:
+        # Determine chat_id
+        chat_id = request.chat_id
+        if request.chat_id is None:
+            if LLM_SERVICE is None:
+                LLM_SERVICE = LLMService()
+            title = LLM_SERVICE.generate_chat_title(request.query)
+            async with db.execute(
+                "INSERT INTO chats (user_id, vault_name, title, created_at, sender_name, receiver_name, label, time_frame) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (request.user_id, request.vault_name, title, datetime.now(timezone.utc).isoformat(), request.sender_name or "User", request.receiver_name or "Vault AI", request.label or "General", request.time_frame or "Recent")
+            ) as cursor:
+                chat_id = cursor.lastrowid
+            await db.commit()
+
+        # Save user message
+        await db.execute(
+            "INSERT INTO chat_messages (chat_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+            (chat_id, "user", request.query, datetime.now(timezone.utc).isoformat())
+        )
+        await db.commit()
+
         results = VECTOR_SERVICE.search_vault(
             vault_name=request.vault_name,
             query_text=request.query
         )
 
         if not results:
-            return {
-                "status": "success",
-                "message": "No relevant documents found.",
-                "results": []
-            }
-        context_block = "\n\n".join([res["content"] for res in results])
-        
-        global LLM_SERVICE
-        if LLM_SERVICE is None:
-            LLM_SERVICE = LLMService()
-            
-        # Generate answer using LLM
-        generated_response = LLM_SERVICE.generate_answer(
-            query=request.query, 
-            context=context_block
+            generated_response = "No relevant documents found in this vault to construct an answer."
+            context_block = ""
+        else:
+            context_block = "\n\n".join([res["content"] for res in results])
+            if LLM_SERVICE is None:
+                LLM_SERVICE = LLMService()
+                
+            generated_response = LLM_SERVICE.generate_answer(
+                query=request.query, 
+                context=context_block
+            )
+
+        # Save assistant message
+        await db.execute(
+            "INSERT INTO chat_messages (chat_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+            (chat_id, "assistant", generated_response, datetime.now(timezone.utc).isoformat())
         )
+        await db.commit()
 
         return {
             "status": "success",
+            "chat_id": chat_id,
             "query": request.query,
             "vault": request.vault_name,
             "response": generated_response,
@@ -231,7 +261,61 @@ async def chat_query(request: QueryRequest) -> dict:
             "sources": results
         }
     except Exception as e:
+        print(f"Chat query error: {e}")
         raise HTTPException(status_code=500, detail="An internal error occurred.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# User and Chat History Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/users/{user_id}")
+async def get_user_profile(user_id: int, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT username, first_name, last_name, email FROM users WHERE id = ?", (user_id,)) as cursor:
+        row = await cursor.fetchone()
+    
+    if row:
+        return {"id": user_id, "username": row[0], "first_name": row[1], "last_name": row[2], "email": row[3], "title": "Software Engineer"}
+    else:
+        # Default person description fallback
+        return {"id": user_id, "username": "sapnish", "first_name": "Sapnish", "last_name": "", "email": "sapnish@example.com", "title": "System Administrator"}
+
+@app.get("/chats")
+async def list_chats(
+    user_id: int = Query(...), 
+    search_query: str | None = Query(None),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    query = "SELECT id, title, created_at, sender_name, receiver_name, label, time_frame FROM chats WHERE user_id = ?"
+    params = [user_id]
+    
+    if search_query:
+        query += " AND (title LIKE ? OR sender_name LIKE ? OR receiver_name LIKE ? OR label LIKE ? OR EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.chat_id = chats.id AND cm.content LIKE ?))"
+        term = f"%{search_query}%"
+        params.extend([term, term, term, term, term])
+        
+    query += " ORDER BY created_at DESC"
+    
+    async with db.execute(query, tuple(params)) as cursor:
+        rows = await cursor.fetchall()
+        
+    return {"chats": [{
+        "id": str(r[0]), 
+        "title": r[1], 
+        "timestamp": r[2],
+        "sender_name": r[3],
+        "receiver_name": r[4],
+        "label": r[5],
+        "time_frame": r[6]
+    } for r in rows]}
+
+@app.get("/chats/{chat_id}/messages")
+async def list_chat_messages(chat_id: int, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute(
+        "SELECT id, role, content, timestamp FROM chat_messages WHERE chat_id = ? ORDER BY id ASC", 
+        (chat_id,)
+    ) as cursor:
+        rows = await cursor.fetchall()
+    return {"messages": [{"id": str(r[0]), "role": r[1], "content": r[2], "timestamp": r[3]} for r in rows]}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
