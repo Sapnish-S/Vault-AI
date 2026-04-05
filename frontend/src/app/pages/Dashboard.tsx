@@ -96,6 +96,26 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteVault = async (folder: VaultFolder) => {
+    if (!window.confirm(`Are you sure you want to permanently delete '${folder.name}' and its chat history?`)) {
+        return;
+    }
+    try {
+        const activeUserId = getActiveUserId();
+        const res = await fetch(`http://127.0.0.1:8000/vaults/${encodeURIComponent(folder.name)}?user_id=${activeUserId}`, {
+            method: 'DELETE'
+        });
+        if (res.ok) {
+            setVaults(prev => prev.filter(v => v.name !== folder.name));
+            fetchChats(activeUserId); 
+        } else {
+            console.error("Failed to delete vault");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+  };
+
   const handleFolderClick = (folder: VaultFolder) => {
     setSelectedFolder(folder);
   };
@@ -243,7 +263,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Vault Panel Area */}
                 <div className="relative z-30 w-full max-w-6xl mx-auto pt-8">
-                    <VaultPanel folders={vaults} onFolderClick={handleFolderClick} onCreateVaultClick={() => setIsCreateModalOpen(true)} isDark={isDark} />
+                    <VaultPanel folders={vaults} onFolderClick={handleFolderClick} onCreateVaultClick={() => setIsCreateModalOpen(true)} onDeleteVault={handleDeleteVault} isDark={isDark} />
                 </div>
             </>
             ) : (

@@ -4,14 +4,14 @@ from gpt4all import GPT4All
 class LLMService:
     def __init__(self, model_name="Llama-3.2-1B-Instruct-Q4_0.gguf"):
         # Create a directory locally inside the backend to store the downloaded model
-        model_dir = os.path.join(os.getcwd(), "models")
+        model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models")
         os.makedirs(model_dir, exist_ok=True)
-        print(f"Loading local model {model_name} into {model_dir}...")
+        print(f"Checking for model in {model_dir}... Loading into memory (this is not a download, just reading the local file)...")
         
         # This will securely download the model to the 'models' directory if it doesn't already exist.
         # It runs completely offline after the initial download and is optimized for CPU inference!
         self.model = GPT4All(model_name=model_name, model_path=model_dir, allow_download=True)
-        print("Local LLM Service initialized successfully.")
+        print("Local LLM model successfully loaded into memory.")
         
     def generate_answer(self, query: str, context: str) -> str:
         try:
@@ -19,6 +19,7 @@ class LLMService:
                 return "I don't have any relevant context to answer this query."
                 
             system_prompt = f"""You are a secure AI assistant for Vault AI. Answer the user's question based strictly on the provided context retrieved from their secure documents.
+When providing information from the context, you MUST cite the exact source filename and page using exactly the [Source: ..., Page: ...] tags provided.
 If the context does not contain the answer, say "I cannot find the answer to that in your documents." Keep answers concrete and short.
 
 Context: 

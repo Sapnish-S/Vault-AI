@@ -1,15 +1,16 @@
 import React from 'react';
-import { Shield, Plus, MoreHorizontal, Copy } from 'lucide-react';
+import { Shield, Plus, Copy, Trash2 } from 'lucide-react';
 import { VaultFolder } from '../types';
 
 interface VaultPanelProps {
   folders: VaultFolder[];
   onFolderClick?: (folder: VaultFolder) => void;
   onCreateVaultClick?: () => void;
+  onDeleteVault?: (folder: VaultFolder) => void;
   isDark?: boolean;
 }
 
-export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, onCreateVaultClick, isDark = true }) => {
+export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, onCreateVaultClick, onDeleteVault, isDark = true }) => {
   return (
     <div className="w-full flex-1 flex flex-col min-h-0 relative z-40 animate-fade-in-up -mt-[80px]">
         
@@ -209,8 +210,15 @@ export const VaultPanel: React.FC<VaultPanelProps> = ({ folders, onFolderClick, 
                                                 Notes & More
                                             </p>
                                         </div>
-                                        <button className="text-[#989ca5] hover:text-white transition-colors p-1 pointer-events-auto -mt-1 -mr-1">
-                                            <MoreHorizontal size={20} strokeWidth={2.5} />
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteVault?.(folder);
+                                            }}
+                                            className="text-[#989ca5] hover:text-red-400 transition-colors p-1 pointer-events-auto -mt-1 -mr-1 z-50"
+                                            title="Delete Vault"
+                                        >
+                                            <Trash2 size={18} strokeWidth={2} />
                                         </button>
                                     </div>
 

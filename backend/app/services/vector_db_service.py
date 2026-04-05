@@ -22,6 +22,13 @@ class VectorDBService:
             name= vault_name,
             embedding_function=self.emb_fn
         )
+        
+    def delete_vault(self, vault_name: str):
+        try:
+            self.client.delete_collection(name=vault_name)
+            print(f"Deleted vector collection for vault: {vault_name}")
+        except Exception as e:
+            print(f"Error deleting collection {vault_name}: {e}")
     def add_to_vault(self, vault_name:str, processed_chunks: list[dict]):
         collection= self.get_or_create_vault(vault_name)
         # Before adding, we find and delete everything from this specific file.
@@ -73,6 +80,10 @@ class VectorDBService:
             if not results['documents'] or not results['documents'][0]:
                 return []
             for doc, meta, dist in zip(list_of_docs, list_of_metadatas, list_of_dists):
+                # In Chroma with l2 distance, lower is better. 0 is exact match.
+                # > 1.2 is usually weakly related. We drop them.
+                if dist > 1.2:
+                    continue
                 formatted_results.append({
                     "content": doc,
                     "metadata": meta,

@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Send, Sparkles, ArrowLeft } from 'lucide-react';
+import { Send, Sparkles, ArrowLeft, FileText, X } from 'lucide-react';
 import { TypingIndicator } from './TypingIndicator';
+import { Worker, Viewer } from '@react-pdf-viewer/core';
+import { searchPlugin } from '@react-pdf-viewer/search';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import '@react-pdf-viewer/search/lib/styles/index.css';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  sources?: any[];
 }
 
 interface ChatInterfaceProps {
@@ -19,11 +24,29 @@ interface ChatInterfaceProps {
   isDark?: boolean;
 }
 
+const PDFPreviewComponent: React.FC<{ url: string; keyword: string; page: number }> = ({ url, keyword, page }) => {
+    // Calling searchPlugin at the top level of this standard component securely respects React Hook rules
+    const searchPluginInstance = searchPlugin({ keyword });
+    return (
+        <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`}>
+            <Viewer 
+                fileUrl={url} 
+                initialPage={Math.max(0, page - 1)}
+                plugins={[searchPluginInstance]} 
+                defaultScale={1.2}
+            />
+        </Worker>
+    );
+};
+
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId, isReadOnly = false, onChatUpdated, onBack, isDark = true }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(chatId || null);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewKeyword, setPreviewKeyword] = useState<string>('');
+  const [previewPage, setPreviewPage] = useState<number>(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,7 +64,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
                     id: m.id,
                     role: m.role as 'user' | 'assistant',
                     content: m.content,
-                    timestamp: new Date(m.timestamp)
+                    timestamp: new Date(m.timestamp),
+                    sources: m.sources || []
                 })));
             }
         })
@@ -97,7 +121,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.response || data.message || "An error occurred while fetching the response.",
-        timestamp: new Date()
+        timestamp: new Date(),
+        sources: data.sources || []
       };
       setMessages(prev => [...prev, aiResponse]);
     } catch (err) {
@@ -115,11 +140,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      className="flex flex-col w-full h-full max-w-5xl mx-auto relative z-20"
-    >
+    <div className="flex w-full h-full max-w-[90rem] mx-auto relative z-20 gap-6 px-4">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        className={`flex flex-col h-full transition-all duration-500 ease-in-out ${previewUrl ? 'w-1/2' : 'w-full max-w-5xl mx-auto'}`}
+      >
       {/* Header / Status */}
       <div className="flex items-center justify-between mb-6 px-4">
         <div className="flex items-center gap-4">
@@ -149,20 +175,61 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-                <div 
-                className={`max-w-[70%] p-4 rounded-2xl backdrop-blur-md border ${
-                    msg.role === 'user' 
-                    ? isDark ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-50' : 'bg-blue-50 border-blue-200 text-blue-900 shadow-sm' 
-                    : isDark ? 'bg-white/5 border-white/10 text-white/90' : 'bg-white border-slate-200 text-slate-800 shadow-sm'
-                } shadow-lg`}
-                >
-                <p className="text-base leading-relaxed font-light">
-                    {msg.content}
-                </p>
-                <div className={`mt-2 text-[10px] uppercase tracking-wider opacity-40 flex items-center gap-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    {msg.role === 'assistant' && <Sparkles size={10} />}
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
+                <div className={`flex flex-col gap-2 max-w-[70%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div 
+                    className={`w-full p-4 rounded-3xl backdrop-blur-md border ${
+                        msg.role === 'user' 
+                        ? isDark ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-50 shadow-[0_0_20px_rgba(6,182,212,0.15)]' : 'bg-blue-50 border-blue-200 text-blue-900 shadow-md' 
+                        : isDark ? 'bg-white/5 border-white/10 text-white/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)]' : 'bg-white border-slate-200 text-slate-800 shadow-md'
+                    }`}
+                    >
+                        <p className="text-base leading-relaxed font-light whitespace-pre-wrap">
+                            {msg.content.split(/(\[Source:\s*[^,]+,\s*Page:\s*\d+\])/gi).map((part, i) => {
+                                if (/\[Source:\s*[^,]+,\s*Page:\s*\d+\]/i.test(part)) {
+                                    return (
+                                        <span key={i} className={`font-semibold inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[13px] tracking-wide mx-1 my-0.5 align-middle ${isDark ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] border border-cyan-500/30' : 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200'}`}>
+                                            <FileText size={12} strokeWidth={2.5} />
+                                            {part.replace('[', '').replace(']', '')}
+                                        </span>
+                                    );
+                                }
+                                return <span key={i}>{part}</span>;
+                            })}
+                        </p>
+                        <div className={`mt-3 text-[10px] uppercase tracking-[0.1em] font-medium opacity-50 flex items-center gap-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {msg.role === 'assistant' && <Sparkles size={10} />}
+                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    </div>
+                    {msg.sources && msg.sources.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-1 px-1">
+                            {msg.sources.map((src, idx) => {
+                                const page = src.metadata?.page || 1;
+                                const filename = src.metadata?.source || 'document.pdf';
+                                const text = src.content || '';
+                                const keywords = text.split(/\s+/).slice(0, 3).join(" ");
+                                const url = `http://127.0.0.1:8000/vaults/${vaultName}/files/${encodeURIComponent(filename)}/download`;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => {
+                                            setPreviewUrl(url);
+                                            setPreviewKeyword(keywords);
+                                            setPreviewPage(page);
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 border shadow-sm ${
+                                            isDark 
+                                            ? previewUrl === url ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'bg-white/[0.03] text-white/60 border-white/10 hover:bg-white/10 hover:text-white/90' 
+                                            : previewUrl === url ? 'bg-blue-100 text-blue-700 border-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        <FileText size={12} />
+                                        {filename} <span className="opacity-60 text-[10px]">(Pg {page})</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </motion.div>
             ))}
@@ -230,6 +297,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
         </div>
       </div>
       )}
-    </motion.div>
+      </motion.div>
+      
+      {/* PDF Preview Panel */}
+      <AnimatePresence>
+        {previewUrl && (
+          <motion.div 
+            initial={{ opacity: 0, x: 20, width: 0 }}
+            animate={{ opacity: 1, x: 0, width: '50%' }}
+            exit={{ opacity: 0, x: 20, width: 0 }}
+            className={`h-[calc(100%-2rem)] mt-4 flex flex-col rounded-3xl shadow-2xl border overflow-hidden backdrop-blur-xl ${
+                isDark ? 'bg-black/60 border-white/10' : 'bg-white/90 border-slate-200'
+            }`}
+          >
+            <div className={`flex justify-between items-center px-5 py-4 border-b relative z-10 ${isDark ? 'border-white/10 bg-gradient-to-b from-[#1a1e26] to-transparent' : 'border-slate-200 bg-gradient-to-b from-slate-50 to-transparent'}`}>
+                <h3 className={`font-semibold tracking-wide flex items-center gap-2 text-sm ${isDark ? 'text-white/80' : 'text-slate-700'}`}>
+                    <FileText size={16} className={isDark ? 'text-cyan-400' : 'text-blue-500'} /> 
+                    Source Preview
+                </h3>
+                <button 
+                    onClick={() => setPreviewUrl(null)}
+                    className={`p-1.5 rounded-full transition-all duration-300 ${isDark ? 'text-white/40 hover:text-white hover:bg-white/10 hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-200'}`}
+                >
+                    <X size={18} />
+                </button>
+            </div>
+            <div className="flex-1 relative bg-white overflow-hidden rounded-b-3xl">
+                {previewUrl && (
+                    <PDFPreviewComponent 
+                        key={previewUrl + previewKeyword + previewPage} 
+                        url={previewUrl} 
+                        keyword={previewKeyword} 
+                        page={previewPage}
+                    />
+                )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };

@@ -10,7 +10,9 @@ import contextlib
 import aiosqlite
 from pathlib import Path
 from fastapi import UploadFile, File, Form
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+import json
 from app.services.chunking_service import ChunkingService
 from app.services.pdf_service import PDFProcessor
 from app.services.vector_db_service import VectorDBService
@@ -119,6 +121,12 @@ async def upload_document(
         # Record the file so we can track it and prevent re-uploads
         await record_vault_file(db, user_id, domain, file.filename)
 
+        # Move it to persistent vault storage instead of deleting
+        vault_dir = Path("data/vaults") / domain
+        vault_dir.mkdir(parents=True, exist_ok=True)
+        dest_path = vault_dir / file.filename
+        shutil.move(str(temp_path), str(dest_path))
+
         return {
             "status": "success",
             "filename": file.filename,
@@ -131,7 +139,10 @@ async def upload_document(
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
     finally:
         if temp_path.exists():
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +208,13 @@ async def list_vault_files(vault_name: str, user_id: int = Query(...), db: aiosq
         "files": [{"filename": row[0], "uploaded_at": row[1]} for row in rows]
     }
 
+@app.get("/vaults/{vault_name}/files/{filename}/download")
+async def download_vault_file(vault_name: str, filename: str):
+    file_path = Path("data/vaults") / vault_name / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Chat query endpoint
@@ -235,7 +253,7 @@ async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(g
             generated_response = "No relevant documents found in this vault to construct an answer."
             context_block = ""
         else:
-            context_block = "\n\n".join([res["content"] for res in results])
+            context_block = "\n\n".join([f"[Source: {res['metadata']['source']}, Page: {res['metadata']['page']}]\n{res['content']}" for res in results])
             if LLM_SERVICE is None:
                 LLM_SERVICE = LLMService()
                 
@@ -245,10 +263,18 @@ async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(g
             )
 
         # Save assistant message
-        await db.execute(
-            "INSERT INTO chat_messages (chat_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-            (chat_id, "assistant", generated_response, datetime.now(timezone.utc).isoformat())
-        )
+        sources_json = json.dumps(results) if results else "[]"
+        try:
+            await db.execute(
+                "INSERT INTO chat_messages (chat_id, role, content, timestamp, sources) VALUES (?, ?, ?, ?, ?)",
+                (chat_id, "assistant", generated_response, datetime.now(timezone.utc).isoformat(), sources_json)
+            )
+        except Exception:
+            # Fallback if migration hasn't run
+            await db.execute(
+                "INSERT INTO chat_messages (chat_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+                (chat_id, "assistant", generated_response, datetime.now(timezone.utc).isoformat())
+            )
         await db.commit()
 
         return {
@@ -289,14 +315,30 @@ async def list_chats(
     params = [user_id]
     
     if search_query:
-        query += " AND (title LIKE ? OR sender_name LIKE ? OR receiver_name LIKE ? OR label LIKE ? OR EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.chat_id = chats.id AND cm.content LIKE ?))"
+        query += " AND (title LIKE ? OR label LIKE ? OR EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.chat_id = chats.id AND cm.content LIKE ?))"
         term = f"%{search_query}%"
-        params.extend([term, term, term, term, term])
+        params.extend([term, term, term])
         
     query += " ORDER BY created_at DESC"
     
     async with db.execute(query, tuple(params)) as cursor:
         rows = await cursor.fetchall()
+        
+    if search_query:
+        import re
+        pattern = re.compile(rf'\b{re.escape(search_query)}\b', re.IGNORECASE)
+        filtered_rows = []
+        for r in rows:
+            chat_id, title, _, _, _, label, _ = r
+            if (title and pattern.search(title)) or (label and pattern.search(label)):
+                filtered_rows.append(r)
+                continue
+            
+            async with db.execute("SELECT content FROM chat_messages WHERE chat_id = ?", (chat_id,)) as msg_cursor:
+                msg_rows = await msg_cursor.fetchall()
+                if any(pattern.search(m[0]) for m in msg_rows):
+                    filtered_rows.append(r)
+        rows = filtered_rows
         
     return {"chats": [{
         "id": str(r[0]), 
@@ -310,13 +352,55 @@ async def list_chats(
 
 @app.get("/chats/{chat_id}/messages")
 async def list_chat_messages(chat_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
-        "SELECT id, role, content, timestamp FROM chat_messages WHERE chat_id = ? ORDER BY id ASC", 
-        (chat_id,)
-    ) as cursor:
-        rows = await cursor.fetchall()
-    return {"messages": [{"id": str(r[0]), "role": r[1], "content": r[2], "timestamp": r[3]} for r in rows]}
+    try:
+        async with db.execute(
+            "SELECT id, role, content, timestamp, sources FROM chat_messages WHERE chat_id = ? ORDER BY id ASC", 
+            (chat_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return {"messages": [{"id": str(r[0]), "role": r[1], "content": r[2], "timestamp": r[3], "sources": json.loads(r[4]) if r[4] else []} for r in rows]}
+    except Exception:
+        # Fallback if sources column missing
+        async with db.execute(
+            "SELECT id, role, content, timestamp FROM chat_messages WHERE chat_id = ? ORDER BY id ASC", 
+            (chat_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return {"messages": [{"id": str(r[0]), "role": r[1], "content": r[2], "timestamp": r[3]} for r in rows]}
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Vault deletion endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.delete("/vaults/{vault_name}")
+async def delete_vault(vault_name: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+    try:
+        # 1. Delete physical PDFs
+        vault_dir = Path("data/vaults") / vault_name
+        if vault_dir.exists():
+            shutil.rmtree(vault_dir, ignore_errors=True)
+            
+        # 2. Delete ChromaDB collection
+        global VECTOR_SERVICE
+        if VECTOR_SERVICE is None:
+            VECTOR_SERVICE = VectorDBService()
+        VECTOR_SERVICE.delete_vault(vault_name)
+        
+        # 3. Clean SQLite data
+        await db.execute(
+            "DELETE FROM chat_messages WHERE chat_id IN (SELECT id FROM chats WHERE vault_name = ? AND user_id = ?)",
+            (vault_name, user_id)
+        )
+        await db.execute("DELETE FROM chats WHERE vault_name = ? AND user_id = ?", (vault_name, user_id))
+        await db.execute("DELETE FROM vault_files WHERE vault_name = ? AND user_id = ?", (vault_name, user_id))
+        await db.execute("DELETE FROM user_vaults WHERE vault_name = ? AND user_id = ?", (vault_name, user_id))
+        
+        await db.commit()
+        return {"status": "success", "message": f"Vault '{vault_name}' successfully deleted."}
+    except Exception as e:
+        print(f"Delete vault error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Health check

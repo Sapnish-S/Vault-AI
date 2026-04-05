@@ -79,4 +79,8 @@ async def init_db():
                 FOREIGN KEY(chat_id) REFERENCES chats(id)
             )
         """)
+        try:
+            await db.execute("ALTER TABLE chat_messages ADD COLUMN sources TEXT")
+        except:
+            pass
         await db.commit()
