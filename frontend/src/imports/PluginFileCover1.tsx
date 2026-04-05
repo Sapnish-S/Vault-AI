@@ -1,10 +1,13 @@
+import imgImage1 from '../../assets/e2b94019119eda7b10e43b0b68acc1a55e8babf5.png';
 import { imgImage2, imgImage3 } from "./svg-12jzx";
 
 function MaskGroup1() {
   return (
     <div className="absolute contents left-0 top-0" data-name="Mask group">
       <div className="-translate-x-1/2 -translate-y-1/2 absolute blur-[8px] h-[1872px] left-[-225.13px] mask-position-[450.255px_839px,_444.255px_833px] top-[-419.5px] w-[1768px]" data-name="image 1" style={{ maskImage: `url('${imgImage2}'), url('${imgImage3}')` }}>
-        <img alt="" className="absolute h-[171.55%] left-0 max-w-none top-[-35.77%] w-full" src="/placeholder.png" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <img alt="" className="absolute h-[171.55%] left-0 max-w-none top-[-35.77%] w-full" src={imgImage1} />
+        </div>
       </div>
     </div>
   );
@@ -44,7 +47,7 @@ export default function PluginFileCover() {
   return (
     <div className="bg-white relative size-full" data-name="Plugin / file cover - 1">
       <div className="absolute h-[1080px] left-0 top-0 w-[1920px]" data-name="image 1">
-        <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src="/placeholder.png" />
+        <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgImage1} />
       </div>
       <Frame />
     </div>

@@ -3,9 +3,10 @@ import { motion } from 'motion/react';
 
 interface VectorLoadingProps {
   onComplete: () => void;
+  isDark?: boolean;
 }
 
-export const VectorLoading: React.FC<VectorLoadingProps> = ({ onComplete }) => {
+export const VectorLoading: React.FC<VectorLoadingProps> = ({ onComplete, isDark = true }) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -169,13 +170,15 @@ export const VectorLoading: React.FC<VectorLoadingProps> = ({ onComplete }) => {
             animate={{ opacity: [0.7, 1, 0.7] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <h2 className="text-xs font-semibold tracking-[0.3em] text-blue-100 uppercase drop-shadow-[0_0_15px_rgba(147,197,253,0.8)]">
+            <h2 className={`text-xs font-semibold tracking-[0.3em] uppercase transition-colors ${
+              isDark ? 'text-blue-100 drop-shadow-[0_0_15px_rgba(147,197,253,0.8)]' : 'text-blue-800 drop-shadow-md'
+            }`}>
               INSERTING FILES IN VECTOR DATABASE
             </h2>
           </motion.div>
           
           {/* Progress Bar Minimal */}
-          <div className="w-56 h-0.5 bg-blue-900/40 rounded-full overflow-hidden mx-auto backdrop-blur-sm">
+          <div className={`w-56 h-0.5 rounded-full overflow-hidden mx-auto backdrop-blur-sm ${isDark ? 'bg-blue-900/40' : 'bg-blue-200'}`}>
             <motion.div 
               className="h-full bg-gradient-to-r from-blue-500 via-blue-300 to-blue-500 shadow-[0_0_15px_#60a5fa]"
               initial={{ width: 0 }}
@@ -184,7 +187,7 @@ export const VectorLoading: React.FC<VectorLoadingProps> = ({ onComplete }) => {
             />
           </div>
           
-          <p className="text-[10px] tracking-[0.3em] text-blue-400/70 font-mono">
+          <p className={`text-[10px] tracking-[0.3em] font-mono transition-colors ${isDark ? 'text-blue-400/70' : 'text-blue-600/70'}`}>
             {Math.round(progress)}% COMPLETE
           </p>
         </motion.div>

@@ -3,47 +3,36 @@ import { Link, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { SanctuaryBackground } from '../components/SanctuaryBackground';
 
-const API_BASE = 'http://localhost:8000';
-
 export const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
-
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch('http://127.0.0.1:8000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password })
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.detail || 'Login failed. Please try again.');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Login failed');
         return;
       }
-
-      // Store user info in localStorage for session
-      localStorage.setItem('user', JSON.stringify({ user_id: data.user_id, username: data.username }));
+      sessionStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }));
       navigate('/dashboard');
-    } catch {
-      setError('Unable to connect to server. Is the backend running?');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setError('Network error connecting to the server');
     }
   };
 
   return (
-    <div className="relative w-full min-h-screen flex bg-black text-white overflow-hidden font-sans">
+    <div className="relative w-full min-h-screen flex bg-[#05070A] text-white overflow-hidden font-sans">
 
       {/* Code-Generated Dynamic Background */}
       <SanctuaryBackground />
@@ -81,22 +70,16 @@ export const Login: React.FC = () => {
               </p>
             </div>
 
+            {/* Spacing */}
+
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-
-              {/* Error Message */}
               {error && (
-                <div
-                  className="px-4 py-3 rounded-lg text-sm text-red-300 text-center"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                  }}
-                >
+                <div className="bg-red-500/20 border border-red-500/50 text-red-200 text-sm px-4 py-2 rounded-lg">
                   {error}
                 </div>
               )}
-
               {/* Username Field */}
               <div>
                 <input
@@ -118,7 +101,6 @@ export const Login: React.FC = () => {
                     e.target.style.boxShadow = 'none';
                   }}
                   required
-                  disabled={isLoading}
                 />
               </div>
 
@@ -143,7 +125,6 @@ export const Login: React.FC = () => {
                     e.target.style.boxShadow = 'none';
                   }}
                   required
-                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -161,11 +142,10 @@ export const Login: React.FC = () => {
                 </button>
               </div>
 
-              {/* Sign In Button */}
+              {/* Liquid-Glass Sign In Button */}
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full py-3.5 text-white font-medium tracking-wider transition-all duration-300 hover:scale-[1.02] relative overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="w-full py-3.5 text-white font-medium tracking-wider transition-all duration-300 hover:scale-[1.02] relative overflow-hidden"
                 style={{
                   background: 'rgba(56, 189, 248, 0.15)',
                   backdropFilter: 'blur(12px)',
@@ -179,17 +159,25 @@ export const Login: React.FC = () => {
                   `,
                 }}
                 onMouseEnter={(e) => {
-                  if (!isLoading) {
-                    e.currentTarget.style.background = 'rgba(14, 165, 233, 0.25)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }
+                  e.currentTarget.style.background = 'rgba(14, 165, 233, 0.25)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.boxShadow = `
+                    0px 0px 0.5px 2px rgba(0, 0, 0, 0.68),
+                    inset 0px 1px 1px rgba(255, 255, 255, 0.35),
+                    inset 0px -1px 1px rgba(0, 0, 0, 0.2)
+                  `;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
                   e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.18)';
+                  e.currentTarget.style.boxShadow = `
+                    0px 0px 0.5px 1.5px rgba(0, 0, 0, 0.68),
+                    inset 0px 1px 1px rgba(255, 255, 255, 0.25),
+                    inset 0px -1px 1px rgba(0, 0, 0, 0.2)
+                  `;
                 }}
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                Sign In
               </button>
             </form>
 

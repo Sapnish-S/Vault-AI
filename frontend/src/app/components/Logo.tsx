@@ -1,15 +1,14 @@
 import React from 'react';
-import { Shield } from 'lucide-react';
+import logoSymbol from '../../assets/5e35d26808e8a4dc9bb613c768fd715c3fb5e067.png';
+import logoText from '../../assets/da8dccd81c57f80a3f24697b3962eb0947dc4b65.png';
 
-export const Logo: React.FC = () => {
+export const Logo: React.FC<{ isDark?: boolean }> = ({ isDark = true }) => {
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-500/20">
-        <Shield size={18} className="text-white" />
-      </div>
-      <span className="text-lg font-bold tracking-tight text-white/90 font-serif">
-        Vault AI
-      </span>
+    <div className={`flex items-center gap-2.5 transition-all duration-700 ${!isDark ? 'brightness-[0.2] contrast-150' : ''}`}>
+      {/* Logo Symbol */}
+      <img src={logoSymbol} alt="Vault AI Symbol" className="h-7" />
+      {/* Logo Text */}
+      <img src={logoText} alt="Vault AI" className="h-6 ml-[-51px] mr-[0px] mt-[0px] mb-[-4px]" />
     </div>
   );
 };

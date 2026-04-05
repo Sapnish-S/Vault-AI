@@ -33,6 +33,11 @@ env/
 *.sqlite
 *.sqlite3
 
+# Local Vector DB & Temp Data
+backend/data/
+backend/temp/
+*.bin
+
 # Environment variables
 .env
 .env.local
@@ -58,3 +63,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/build/
 frontend/.vite/
+
+# Text files
+*.txt
+!backend/requirements.txt

@@ -1,7 +1,7 @@
 
-  # Build AI Assistant Interface (Copy)
+  # Build AI Assistant Interface (Copy) (Copy)
 
-  This is a code bundle for Build AI Assistant Interface (Copy). The original project is available at https://www.figma.com/design/xIPFAkqbaFSiKhHpfPVIhy/Build-AI-Assistant-Interface--Copy-.
+  This is a code bundle for Build AI Assistant Interface (Copy) (Copy). The original project is available at https://www.figma.com/design/5pHZqwRWDe6SZoh1v8qQhb/Build-AI-Assistant-Interface--Copy---Copy-.
 
   ## Running the code
 
