@@ -2,6 +2,7 @@ export interface Chat {
   id: string;
   title: string;
   timestamp: string;
+  vault_name: string;
   sender_name?: string;
   receiver_name?: string;
   label?: string;

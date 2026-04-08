@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, X } from 'lucide-react';
+import { FileText, X, ArrowLeft, Trash2 } from 'lucide-react';
 import { Document } from '../types';
 
 interface FolderViewProps {
@@ -36,6 +36,23 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
     fetchDocuments();
   }, [folderName]);
 
+  const handleDeleteDocument = async (e: React.MouseEvent, filename: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to remove ${filename} from this vault?`)) return;
+
+    try {
+      const activeUserId = getActiveUserId();
+      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files/${encodeURIComponent(filename)}?user_id=${activeUserId}`, {
+          method: 'DELETE'
+      });
+      if (res.ok) {
+          fetchDocuments();
+      }
+    } catch (err) {
+      console.error("Failed to delete document", err);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -64,10 +81,19 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
   return (
     <div className="w-full h-full flex flex-col items-center justify-start pt-12 px-8 animate-[fadeIn_0.4s_ease-out]">
 
+      {/* Back Button - Top Left relative to Dashboard */}
+      <button
+        onClick={onClose}
+        className={`absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${isDark ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-800 hover:bg-black/5'}`}
+      >
+        <ArrowLeft size={18} />
+        <span className="text-sm font-medium tracking-wide">Back to Vaults</span>
+      </button>
+
       {/* Close Button - Top Right */}
       <button
         onClick={onClose}
-        className={`absolute top-8 right-24 p-3 rounded-full transition-all duration-300 ${isDark ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-slate-400 hover:text-slate-800 hover:bg-black/5'}`}
+        className={`absolute top-8 right-8 p-3 rounded-full transition-all duration-300 ${isDark ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-slate-400 hover:text-slate-800 hover:bg-black/5'}`}
       >
         <X size={24} />
       </button>
@@ -93,22 +119,28 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
             } before:absolute before:inset-x-0 before:top-0 before:h-1/3 before:rounded-3xl before:pointer-events-none after:absolute after:inset-0 after:rounded-3xl after:pointer-events-none`}
         >
           {/* Documents List */}
-          <div className="space-y-3 mb-8 relative z-10 min-h-[100px]">
+          <div className="space-y-3 mb-8 relative z-10 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
             {documents.length === 0 ? (
               <div className={`text-center py-8 ${isDark ? 'text-white/40' : 'text-slate-400'}`}>No documents in this vault yet.</div>
             ) : (
               documents.map((doc, idx) => (
                 <div
                   key={doc.id || idx}
-                  className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 cursor-pointer group ${isDark ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
-                  style={{
-                    background: 'transparent',
-                  }}
+                  className={`flex items-center justify-between gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group ${isDark ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
                 >
-                  <FileText className={`transition-colors ${isDark ? 'text-white/40 group-hover:text-white/60' : 'text-slate-400 group-hover:text-blue-500'}`} size={20} />
-                  <span className={`font-light transition-colors ${isDark ? 'text-white/80 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
-                    {doc.filename}
-                  </span>
+                  <div className="flex items-center gap-4">
+                      <FileText className={`transition-colors ${isDark ? 'text-white/40 group-hover:text-white/60' : 'text-slate-400 group-hover:text-blue-500'}`} size={20} />
+                      <span className={`font-light transition-colors ${isDark ? 'text-white/80 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                        {doc.filename}
+                      </span>
+                  </div>
+                  <button 
+                    onClick={(e) => handleDeleteDocument(e, doc.filename)} 
+                    className={`p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all ${isDark ? 'text-red-400/50 hover:text-red-400 hover:bg-red-400/10' : 'text-red-500/50 hover:text-red-600 hover:bg-red-50'}`}
+                    title="Delete document"
+                  >
+                        <Trash2 size={16} />
+                  </button>
                 </div>
               ))
             )}

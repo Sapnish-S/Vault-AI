@@ -22,4 +22,12 @@ export const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    {
+        path: '/chat/*',
+        element: (
+            <ProtectedRoute>
+                <Dashboard />
+            </ProtectedRoute>
+        ),
+    },
 ]);

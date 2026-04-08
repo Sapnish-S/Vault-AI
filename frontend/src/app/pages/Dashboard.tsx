@@ -18,6 +18,7 @@ import { CosmicNebulaBackground } from '../components/CosmicNebulaBackground';
 import { VaultFolder, ChatSession } from '../types';
 import { CreateVaultModal } from '../components/CreateVaultModal';
 import { ChatHistoryTable } from '../components/ChatHistoryTable';
+import { ProfileModal } from '../components/ProfileModal';
 
 type ViewState = 'home' | 'loading' | 'chat' | 'past_chat' | 'chat_history';
 
@@ -27,6 +28,7 @@ export const Dashboard: React.FC = () => {
   const [viewState, setViewState] = useState<ViewState>('home');
   const [vaults, setVaults] = useState<VaultFolder[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -69,6 +71,27 @@ export const Dashboard: React.FC = () => {
   const getActiveUserId = () => {
     const userStr = sessionStorage.getItem('user');
     return userStr ? JSON.parse(userStr).id : 1;
+  };
+
+  const handleRoleSave = async (newRole: string) => {
+    try {
+      const activeUserId = getActiveUserId();
+      const res = await fetch(`http://127.0.0.1:8000/auth/profile/${activeUserId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        // Update local session
+        const updatedUser = { ...currentUser, role: newRole };
+        setCurrentUser(updatedUser);
+        sessionStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (e) {
+      console.error('Failed to update role', e);
+    }
   };
 
   useEffect(() => {
@@ -127,17 +150,20 @@ export const Dashboard: React.FC = () => {
   const handleStartConversation = () => {
     setSelectedChatId(null);
     setViewState('loading');
+    window.history.pushState({}, '', '/chat');
   };
 
   const handleHomeClick = () => {
     setViewState('home');
     setSelectedFolder(null);
     setSelectedChatId(null);
+    window.history.pushState({}, '', '/dashboard');
   };
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChatId(chatId);
     setViewState('past_chat');
+    window.history.pushState({}, '', `/chat/past`);
   };
 
   const handleLoadingComplete = () => {
@@ -160,7 +186,15 @@ export const Dashboard: React.FC = () => {
 
       {/* Sidebar (Z-30) */}
       <div className="relative z-30 h-full">
-        <Sidebar recentChats={chats} user={currentUser} onChatSelect={handleChatSelect} onHome={handleHomeClick} onSearchClick={() => setViewState('chat_history')} isDark={isDark} />
+        <Sidebar 
+          recentChats={chats} 
+          user={currentUser} 
+          onChatSelect={handleChatSelect} 
+          onHome={handleHomeClick} 
+          onSearchClick={() => setViewState('chat_history')} 
+          onProfileClick={() => setIsProfileModalOpen(true)}
+          isDark={isDark} 
+        />
       </div>
 
       {/* Main Canvas (Z-20) */}
@@ -202,11 +236,23 @@ export const Dashboard: React.FC = () => {
               const userStr = localStorage.getItem('user');
               const activeUserId = userStr ? JSON.parse(userStr).id : 1;
               fetchChats(activeUserId);
-            }} onBack={() => setViewState('home')} isDark={isDark} />
+            }} onBack={() => {
+                setViewState('home');
+                window.history.pushState({}, '', '/dashboard');
+            }} isDark={isDark} />
         )}
 
         {viewState === 'past_chat' && (
-            <ChatInterface vaultName={""} chatId={selectedChatId} isReadOnly={true} onBack={() => setViewState('home')} isDark={isDark} />
+            <ChatInterface 
+              vaultName={chats.find(c => c.id.toString() === selectedChatId)?.vault_name || ""} 
+              chatId={selectedChatId} 
+              isReadOnly={true} 
+              onBack={() => {
+                setViewState('home');
+                window.history.pushState({}, '', '/dashboard');
+              }} 
+              isDark={isDark} 
+            />
         )}
 
         {viewState === 'chat_history' && (
@@ -282,6 +328,14 @@ export const Dashboard: React.FC = () => {
           onClose={() => setIsCreateModalOpen(false)} 
           onSubmit={handleCreateVault} 
           isDark={isDark} 
+        />
+
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={currentUser}
+          onSave={handleRoleSave}
+          isDark={isDark}
         />
         
       </main>

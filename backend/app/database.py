@@ -16,6 +16,7 @@ async def init_db():
                 hashed_password TEXT NOT NULL,
                 first_name TEXT,
                 last_name TEXT,
+                role TEXT,
                 email TEXT
             )
         """)
@@ -54,10 +55,11 @@ async def init_db():
         
         # Add new columns to existing table if they don't exist
         try:
-            await db.execute("ALTER TABLE chats ADD COLUMN sender_name TEXT")
+            await db.execute("ALTER TABLE users ADD COLUMN role TEXT")
         except:
             pass
         try:
+            await db.execute("ALTER TABLE chats ADD COLUMN sender_name TEXT")
             await db.execute("ALTER TABLE chats ADD COLUMN receiver_name TEXT")
         except:
             pass

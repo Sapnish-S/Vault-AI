@@ -6,6 +6,8 @@ import { Worker, Viewer } from '@react-pdf-viewer/core';
 import { searchPlugin } from '@react-pdf-viewer/search';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/search/lib/styles/index.css';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
@@ -183,19 +185,34 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
                         : isDark ? 'bg-white/5 border-white/10 text-white/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)]' : 'bg-white border-slate-200 text-slate-800 shadow-md'
                     }`}
                     >
-                        <p className="text-base leading-relaxed font-light whitespace-pre-wrap">
-                            {msg.content.split(/(\[Source:\s*[^,]+,\s*Page:\s*\d+\])/gi).map((part, i) => {
-                                if (/\[Source:\s*[^,]+,\s*Page:\s*\d+\]/i.test(part)) {
-                                    return (
-                                        <span key={i} className={`font-semibold inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[13px] tracking-wide mx-1 my-0.5 align-middle ${isDark ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] border border-cyan-500/30' : 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200'}`}>
-                                            <FileText size={12} strokeWidth={2.5} />
-                                            {part.replace('[', '').replace(']', '')}
-                                        </span>
-                                    );
-                                }
-                                return <span key={i}>{part}</span>;
-                            })}
-                        </p>
+                        <div className="text-base leading-relaxed font-light">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    p: ({node, ...props}) => <p className="mb-4 last:mb-0" {...props} />,
+                                    ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
+                                    ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+                                    li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                                    strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                                    em: ({node, ...props}) => <em className="italic opacity-90" {...props} />,
+                                    a: ({node, href, children, ...props}) => {
+                                        if (href === '#vault-source') {
+                                            return (
+                                                <span className={`font-semibold inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[13px] tracking-wide mx-1 my-0.5 align-middle ${isDark ? 'bg-cyan-500/20 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] border border-cyan-500/30' : 'bg-blue-100 text-blue-700 shadow-sm border border-blue-200'}`}>
+                                                    <FileText size={12} strokeWidth={2.5} />
+                                                    {children}
+                                                </span>
+                                            );
+                                        }
+                                        return <a href={href} className="underline hover:opacity-80 transition-opacity" {...props}>{children}</a>
+                                    }
+                                }}
+                            >
+                                {msg.content.replace(/\[Source:\s*([^,]+),\s*Page:\s*(\d+)\]/gi, (match, file, page) => {
+                                    return `[Source: ${file}, Page: ${page}](#vault-source)`;
+                                })}
+                            </ReactMarkdown>
+                        </div>
                         <div className={`mt-3 text-[10px] uppercase tracking-[0.1em] font-medium opacity-50 flex items-center gap-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.role === 'assistant' && <Sparkles size={10} />}
                             {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

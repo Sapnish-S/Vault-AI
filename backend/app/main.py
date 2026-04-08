@@ -296,11 +296,11 @@ async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(g
 
 @app.get("/users/{user_id}")
 async def get_user_profile(user_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT username, first_name, last_name, email FROM users WHERE id = ?", (user_id,)) as cursor:
+    async with db.execute("SELECT username, first_name, last_name, email, role FROM users WHERE id = ?", (user_id,)) as cursor:
         row = await cursor.fetchone()
     
     if row:
-        return {"id": user_id, "username": row[0], "first_name": row[1], "last_name": row[2], "email": row[3], "title": "Software Engineer"}
+        return {"id": user_id, "username": row[0], "first_name": row[1], "last_name": row[2], "email": row[3], "role": row[4] or "Software Engineer"}
     else:
         # Default person description fallback
         return {"id": user_id, "username": "sapnish", "first_name": "Sapnish", "last_name": "", "email": "sapnish@example.com", "title": "System Administrator"}
@@ -311,7 +311,7 @@ async def list_chats(
     search_query: str | None = Query(None),
     db: aiosqlite.Connection = Depends(get_db)
 ):
-    query = "SELECT id, title, created_at, sender_name, receiver_name, label, time_frame FROM chats WHERE user_id = ?"
+    query = "SELECT id, title, created_at, sender_name, receiver_name, label, time_frame, vault_name FROM chats WHERE user_id = ?"
     params = [user_id]
     
     if search_query:
@@ -329,7 +329,7 @@ async def list_chats(
         pattern = re.compile(rf'\b{re.escape(search_query)}\b', re.IGNORECASE)
         filtered_rows = []
         for r in rows:
-            chat_id, title, _, _, _, label, _ = r
+            chat_id, title, _, _, _, label, _, vault_name = r
             if (title and pattern.search(title)) or (label and pattern.search(label)):
                 filtered_rows.append(r)
                 continue
@@ -347,7 +347,8 @@ async def list_chats(
         "sender_name": r[3],
         "receiver_name": r[4],
         "label": r[5],
-        "time_frame": r[6]
+        "time_frame": r[6],
+        "vault_name": r[7]
     } for r in rows]}
 
 @app.get("/chats/{chat_id}/messages")
@@ -372,6 +373,30 @@ async def list_chat_messages(chat_id: int, db: aiosqlite.Connection = Depends(ge
 # ─────────────────────────────────────────────────────────────────────────────
 # Vault deletion endpoint
 # ─────────────────────────────────────────────────────────────────────────────
+
+@app.delete("/vaults/{vault_name}/files/{filename}")
+async def delete_vault_file(vault_name: str, filename: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+    """Delete a specific file from a vault."""
+    try:
+        # Delete from DB
+        await db.execute("DELETE FROM vault_files WHERE user_id=? AND vault_name=? AND filename=?", (user_id, vault_name, filename))
+        await db.commit()
+        
+        # Delete from Vector DB
+        try:
+            collection = VECTOR_SERVICE.get_or_create_vault(vault_name)
+            collection.delete(where={"source": filename})
+        except Exception as e:
+            print(f"Error removing from vector DB: {e}")
+            
+        # Delete practically
+        file_path = Path("data/vaults") / vault_name / filename
+        if file_path.exists():
+            os.remove(file_path)
+            
+        return {"status": "success", "message": f"Deleted {filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/vaults/{vault_name}")
 async def delete_vault(vault_name: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):

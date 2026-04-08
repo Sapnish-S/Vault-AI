@@ -6,14 +6,15 @@ import profileImg from '../../assets/2be51f959d31760d9fea5b9fa18cd530ec37cff3.pn
 
 interface SidebarProps {
   recentChats: ChatSession[];
-  user?: { first_name: string; last_name: string; title: string; };
+  user?: { first_name: string; last_name: string; role: string; username?: string; };
   onChatSelect?: (chatId: string) => void;
   onHome?: () => void;
   onSearchClick?: () => void;
+  onProfileClick?: () => void;
   isDark?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelect, onHome, onSearchClick, isDark = true }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelect, onHome, onSearchClick, onProfileClick, isDark = true }) => {
   return (
     <div className="relative flex flex-col w-72 h-full z-20 p-4">
       {/* Container with VaultPanel glass styling */}
@@ -34,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelec
 
         {/* User Profile - Large Layout (Moved to Top) */}
         <div className="px-6 mb-6 mt-2 relative z-10">
-          <div className="flex flex-col items-center justify-center p-4 cursor-pointer group transition-all duration-500">
+          <div onClick={onProfileClick} className="flex flex-col items-center justify-center p-4 cursor-pointer group transition-all duration-500">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center relative overflow-hidden mb-4 transition-all duration-300 z-10 group-hover:-translate-y-1 ${isDark
               ? 'bg-gradient-to-br from-[#3B82F6]/20 to-[#1d4ed8]/20 border border-white/20 shadow-[0_10px_15px_rgba(0,0,0,0.5)] group-hover:drop-shadow-[0_0_25px_rgba(255,255,255,0.6)]'
               : 'bg-gradient-to-br from-blue-100 to-blue-200 border border-white shadow-[0_10px_15px_rgba(0,0,0,0.1)] group-hover:drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]'
@@ -42,13 +43,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelec
               <img src={profileImg} alt="Ari Lee" className="w-full h-full object-cover" />
               <div className={`absolute inset-0 mix-blend-overlay pointer-events-none ${isDark ? 'bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-30' : 'bg-gradient-to-tr from-white/40 via-transparent to-transparent'}`}></div>
             </div>
-            <div className="flex flex-col text-center relative z-10">
-              <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
-                {user ? `${user.first_name} ${user.last_name}`.trim() : 'Ari Lee'}
-              </span>
-              <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>
-                {user ? user.title : 'Sales Manager'}
-              </span>
+            <div className="flex flex-col items-center text-center relative z-10 w-full min-h-[50px]">
+              {user ? (
+                  <>
+                    <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
+                      {`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User'}
+                    </span>
+                    <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>
+                      {user.role || 'Welcome'}
+                    </span>
+                  </>
+              ) : (
+                  <div className="flex flex-col items-center gap-2 mt-1">
+                      <div className={`h-5 w-28 rounded-md animate-pulse ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                      <div className={`h-3 w-20 rounded-md animate-pulse ${isDark ? 'bg-white/5' : 'bg-slate-100'}`} />
+                  </div>
+              )}
             </div>
           </div>
         </div>
