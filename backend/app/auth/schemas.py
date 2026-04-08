@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    role: Optional[str] = None
     email: Optional[str] = None
 
     class Config:
@@ -21,4 +22,7 @@ class UserResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class RoleUpdate(BaseModel):
+    role: str
 

@@ -18,16 +18,18 @@ class LLMService:
             if not context:
                 return "I don't have any relevant context to answer this query."
                 
-            system_prompt = f"""You are a secure AI assistant for Vault AI. Answer the user's question based strictly on the provided context retrieved from their secure documents.
-When providing information from the context, you MUST cite the exact source filename and page using exactly the [Source: ..., Page: ...] tags provided.
-If the context does not contain the answer, say "I cannot find the answer to that in your documents." Keep answers concrete and short.
+            system_prompt = f"""You are a highly restricted, secure AI assistant for Vault AI. Your ONLY purpose is to extract and summarize information directly from the provided text below.
+CRITICAL RULES:
+1. DO NOT use your internal training data, internet links, or external knowledge under any circumstances.
+2. If the user's question cannot be explicitly answered using ONLY the context below, you MUST say exactly: "I cannot find the answer to that in your documents."
+3. If you find the answer, you MUST cite the exact source filename and page using exactly the [Source: ..., Page: ...] tags provided in the context.
 
-Context: 
+Context Data: 
 {context}"""
             
             with self.model.chat_session(system_prompt=system_prompt):
                 # The generate method natively handles chat templating within a session
-                response = self.model.generate(query, max_tokens=256, temp=0.1)
+                response = self.model.generate(query, max_tokens=300, temp=0.01)
                 
             return response.strip()
         except Exception as e:
