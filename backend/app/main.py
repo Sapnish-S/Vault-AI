@@ -2,15 +2,15 @@ import os
 import shutil
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import router as auth_router
 from app.database import init_db, get_db
+from app.utils.security import get_current_user
 import contextlib
 import aiosqlite
 from pathlib import Path
-from fastapi import UploadFile, File, Form
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import json
 from app.services.chunking_service import ChunkingService
@@ -96,9 +96,10 @@ async def record_vault_file(db: aiosqlite.Connection, user_id: int, vault_name: 
 async def upload_document(
         file: UploadFile = File(...),
         domain: str = Form(...),
-        user_id: int = Form(...),
+        current_user_id: int = Depends(get_current_user),
         db: aiosqlite.Connection = Depends(get_db)
 ):
+    user_id = current_user_id
     temp_path = TEMP_DIR / file.filename
 
     # Check for duplicate BEFORE doing expensive PDF processing
@@ -154,12 +155,12 @@ class CreateVaultRequest(BaseModel):
     user_id: int
 
 @app.post("/vaults")
-async def create_vault(request: CreateVaultRequest, db: aiosqlite.Connection = Depends(get_db)):
+async def create_vault(request: CreateVaultRequest, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
     """Create a new empty vault for a user."""
     try:
         await db.execute(
             "INSERT INTO user_vaults (user_id, vault_name, created_at) VALUES (?, ?, ?)",
-            (request.user_id, request.vault_name, datetime.now(timezone.utc).isoformat())
+            (current_user_id, request.vault_name, datetime.now(timezone.utc).isoformat())
         )
         await db.commit()
         return {"status": "success", "vault_name": request.vault_name}
@@ -169,7 +170,8 @@ async def create_vault(request: CreateVaultRequest, db: aiosqlite.Connection = D
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/vaults")
-async def list_vaults(user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+async def list_vaults(current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
+    user_id = current_user_id
     """Return all vaults for a user with their file counts, including empty vaults."""
     async with db.execute(
         """
@@ -190,7 +192,7 @@ async def list_vaults(user_id: int = Query(...), db: aiosqlite.Connection = Depe
 
 
 @app.get("/vaults/{vault_name}/files")
-async def list_vault_files(vault_name: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+async def list_vault_files(vault_name: str, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
     """Return all files in a specific vault for a user."""
     async with db.execute(
         """
@@ -199,7 +201,7 @@ async def list_vault_files(vault_name: str, user_id: int = Query(...), db: aiosq
         WHERE user_id = ? AND vault_name = ?
         ORDER BY uploaded_at DESC
         """,
-        (user_id, vault_name)
+        (current_user_id, vault_name)
     ) as cursor:
         rows = await cursor.fetchall()
 
@@ -209,7 +211,7 @@ async def list_vault_files(vault_name: str, user_id: int = Query(...), db: aiosq
     }
 
 @app.get("/vaults/{vault_name}/files/{filename}/download")
-async def download_vault_file(vault_name: str, filename: str):
+async def download_vault_file(vault_name: str, filename: str, current_user_id: int = Depends(get_current_user)):
     file_path = Path("data/vaults") / vault_name / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -221,7 +223,7 @@ async def download_vault_file(vault_name: str, filename: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/chat/query")
-async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(get_db)) -> dict:
+async def chat_query(request: QueryRequest, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)) -> dict:
     global LLM_SERVICE
     try:
         # Determine chat_id
@@ -232,7 +234,7 @@ async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(g
             title = LLM_SERVICE.generate_chat_title(request.query)
             async with db.execute(
                 "INSERT INTO chats (user_id, vault_name, title, created_at, sender_name, receiver_name, label, time_frame) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (request.user_id, request.vault_name, title, datetime.now(timezone.utc).isoformat(), request.sender_name or "User", request.receiver_name or "Vault AI", request.label or "General", request.time_frame or "Recent")
+                (current_user_id, request.vault_name, title, datetime.now(timezone.utc).isoformat(), request.sender_name or "User", request.receiver_name or "Vault AI", request.label or "General", request.time_frame or "Recent")
             ) as cursor:
                 chat_id = cursor.lastrowid
             await db.commit()
@@ -295,8 +297,10 @@ async def chat_query(request: QueryRequest, db: aiosqlite.Connection = Depends(g
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/users/{user_id}")
-async def get_user_profile(user_id: int, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT username, first_name, last_name, email, role FROM users WHERE id = ?", (user_id,)) as cursor:
+async def get_user_profile(user_id: int, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this profile")
+    async with db.execute("SELECT username, first_name, last_name, email, role FROM users WHERE id = ?", (current_user_id,)) as cursor:
         row = await cursor.fetchone()
     
     if row:
@@ -307,12 +311,12 @@ async def get_user_profile(user_id: int, db: aiosqlite.Connection = Depends(get_
 
 @app.get("/chats")
 async def list_chats(
-    user_id: int = Query(...), 
     search_query: str | None = Query(None),
+    current_user_id: int = Depends(get_current_user),
     db: aiosqlite.Connection = Depends(get_db)
 ):
     query = "SELECT id, title, created_at, sender_name, receiver_name, label, time_frame, vault_name FROM chats WHERE user_id = ?"
-    params = [user_id]
+    params = [current_user_id]
     
     if search_query:
         query += " AND (title LIKE ? OR label LIKE ? OR EXISTS (SELECT 1 FROM chat_messages cm WHERE cm.chat_id = chats.id AND cm.content LIKE ?))"
@@ -352,7 +356,13 @@ async def list_chats(
     } for r in rows]}
 
 @app.get("/chats/{chat_id}/messages")
-async def list_chat_messages(chat_id: int, db: aiosqlite.Connection = Depends(get_db)):
+async def list_chat_messages(chat_id: int, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
+    # Verify user owns this chat
+    async with db.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,)) as c:
+        row = await c.fetchone()
+        if not row or row[0] != current_user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this chat")
+
     try:
         async with db.execute(
             "SELECT id, role, content, timestamp, sources FROM chat_messages WHERE chat_id = ? ORDER BY id ASC", 
@@ -375,7 +385,8 @@ async def list_chat_messages(chat_id: int, db: aiosqlite.Connection = Depends(ge
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.delete("/vaults/{vault_name}/files/{filename}")
-async def delete_vault_file(vault_name: str, filename: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+async def delete_vault_file(vault_name: str, filename: str, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
+    user_id = current_user_id
     """Delete a specific file from a vault."""
     try:
         # Delete from DB
@@ -399,7 +410,8 @@ async def delete_vault_file(vault_name: str, filename: str, user_id: int = Query
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/vaults/{vault_name}")
-async def delete_vault(vault_name: str, user_id: int = Query(...), db: aiosqlite.Connection = Depends(get_db)):
+async def delete_vault(vault_name: str, current_user_id: int = Depends(get_current_user), db: aiosqlite.Connection = Depends(get_db)):
+    user_id = current_user_id
     try:
         # 1. Delete physical PDFs
         vault_dir = Path("data/vaults") / vault_name

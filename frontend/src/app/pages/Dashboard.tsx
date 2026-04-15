@@ -42,7 +42,10 @@ export const Dashboard: React.FC = () => {
 
   const fetchVaults = async (userId: number) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/vaults?user_id=${userId}`);
+      const token = sessionStorage.getItem('token');
+      const res = await fetch(`http://127.0.0.1:8000/vaults`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.vaults) {
         setVaults(data.vaults);
@@ -54,7 +57,10 @@ export const Dashboard: React.FC = () => {
 
   const fetchChats = async (userId: number) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/chats?user_id=${userId}`);
+      const token = sessionStorage.getItem('token');
+      const res = await fetch(`http://127.0.0.1:8000/chats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.chats) setChats(data.chats);
     } catch (e) { console.error(e); }
@@ -62,7 +68,10 @@ export const Dashboard: React.FC = () => {
 
   const fetchUser = async (userId: number) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/users/${userId}`);
+      const token = sessionStorage.getItem('token');
+      const res = await fetch(`http://127.0.0.1:8000/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.first_name || data.username) setCurrentUser(data);
     } catch (e) { console.error(e); }
@@ -76,10 +85,12 @@ export const Dashboard: React.FC = () => {
   const handleRoleSave = async (newRole: string) => {
     try {
       const activeUserId = getActiveUserId();
+      const token = sessionStorage.getItem('token');
       const res = await fetch(`http://127.0.0.1:8000/auth/profile/${activeUserId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ role: newRole })
       });
@@ -105,9 +116,13 @@ export const Dashboard: React.FC = () => {
   const handleCreateVault = async (name: string) => {
     try {
       const activeUserId = getActiveUserId();
+      const token = sessionStorage.getItem('token');
       const res = await fetch('http://127.0.0.1:8000/vaults', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ vault_name: name, user_id: activeUserId })
       });
       if (res.ok) {
@@ -125,8 +140,10 @@ export const Dashboard: React.FC = () => {
     }
     try {
         const activeUserId = getActiveUserId();
-        const res = await fetch(`http://127.0.0.1:8000/vaults/${encodeURIComponent(folder.name)}?user_id=${activeUserId}`, {
-            method: 'DELETE'
+        const token = sessionStorage.getItem('token');
+        const res = await fetch(`http://127.0.0.1:8000/vaults/${encodeURIComponent(folder.name)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
             setVaults(prev => prev.filter(v => v.name !== folder.name));

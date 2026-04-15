@@ -21,8 +21,10 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
 
   const fetchDocuments = async () => {
     try {
-      const activeUserId = getActiveUserId();
-      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files?user_id=${activeUserId}`);
+      const token = sessionStorage.getItem('token');
+      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.files) {
         setDocuments(data.files);
@@ -41,9 +43,10 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
     if (!window.confirm(`Are you sure you want to remove ${filename} from this vault?`)) return;
 
     try {
-      const activeUserId = getActiveUserId();
-      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files/${encodeURIComponent(filename)}?user_id=${activeUserId}`, {
-          method: 'DELETE'
+      const token = sessionStorage.getItem('token');
+      const res = await fetch(`http://127.0.0.1:8000/vaults/${folderName}/files/${encodeURIComponent(filename)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
           fetchDocuments();
@@ -59,14 +62,15 @@ export const FolderView: React.FC<FolderViewProps> = ({ folderName, onClose, onS
 
     setIsUploading(true);
     const formData = new FormData();
-    const activeUserId = getActiveUserId();
-    formData.append('user_id', activeUserId.toString());
+    // user_id is injected by token in backend
     formData.append('file', file);
     formData.append('domain', folderName);
 
     try {
+      const token = sessionStorage.getItem('token');
       await fetch('http://127.0.0.1:8000/upload', {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
       fetchDocuments();

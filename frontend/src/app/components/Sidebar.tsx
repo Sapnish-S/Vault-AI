@@ -16,7 +16,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelect, onHome, onSearchClick, onProfileClick, isDark = true }) => {
   return (
-    <div className="relative flex flex-col w-72 h-full z-20 p-4">
+    <div className="relative flex flex-col w-80 h-full z-20 p-4">
       {/* Container with VaultPanel glass styling */}
       <div className={`relative flex flex-col h-full backdrop-blur-3xl rounded-3xl overflow-hidden transition-all duration-700 ${isDark
         ? 'bg-gradient-to-br from-white/[0.08] via-white/[0.03] to-white/[0.01] shadow-[inset_0_1px_2px_rgba(255,255,255,0.3),inset_0_0_0_1px_rgba(255,255,255,0.1),inset_0_-20px_40px_rgba(0,0,0,0.2),0_8px_32px_rgba(0,0,0,0.4)] before:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.15)_0%,transparent_70%)] after:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
@@ -45,19 +45,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelec
             </div>
             <div className="flex flex-col items-center text-center relative z-10 w-full min-h-[50px]">
               {user ? (
-                  <>
-                    <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
-                      {`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User'}
-                    </span>
-                    <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>
-                      {user.role || 'Welcome'}
-                    </span>
-                  </>
+                <>
+                  <span className={`text-lg font-bold mb-1 transition-colors ${isDark ? 'text-white/90 group-hover:text-white' : 'text-slate-800 group-hover:text-blue-600'}`}>
+                    {`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User'}
+                  </span>
+                  <span className={`text-sm font-medium transition-colors ${isDark ? 'text-white/50 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-500'}`}>
+                    {user.role || 'Welcome'}
+                  </span>
+                </>
               ) : (
-                  <div className="flex flex-col items-center gap-2 mt-1">
-                      <div className={`h-5 w-28 rounded-md animate-pulse ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-                      <div className={`h-3 w-20 rounded-md animate-pulse ${isDark ? 'bg-white/5' : 'bg-slate-100'}`} />
-                  </div>
+                <div className="flex flex-col items-center gap-2 mt-1">
+                  <div className={`h-5 w-28 rounded-md animate-pulse ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                  <div className={`h-3 w-20 rounded-md animate-pulse ${isDark ? 'bg-white/5' : 'bg-slate-100'}`} />
+                </div>
               )}
             </div>
           </div>
@@ -79,18 +79,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ recentChats, user, onChatSelec
         <div className={`mx-6 h-px mb-6 relative z-10 ${isDark ? 'bg-gradient-to-r from-transparent via-white/10 to-transparent' : 'bg-gradient-to-r from-transparent via-slate-200 to-transparent'}`}></div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 relative z-10 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 relative z-10" style={{ scrollbarWidth: 'thin', scrollbarColor: isDark ? 'rgba(255,255,255,0.1) transparent' : 'rgba(0,0,0,0.1) transparent' }}>
           <h3 className={`px-2 text-xs font-bold uppercase tracking-widest mb-3 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>My Chat</h3>
           <ul className="space-y-1">
             {recentChats.map((chat) => (
               <li key={chat.id}>
-                <button 
+                <button
                   title={chat.title}
-                  onClick={() => onChatSelect?.(chat.id)} 
+                  onClick={() => onChatSelect?.(chat.id)}
                   className={`relative w-full text-left flex items-center justify-between px-4 py-2.5 rounded-full transition-all duration-300 group border overflow-hidden ${isDark
-                  ? 'hover:bg-white/5 hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] border-transparent hover:border-white/10 text-white/60 hover:text-white'
-                  : 'hover:bg-white/60 hover:shadow-[0_4px_10px_rgba(59,130,246,0.1)] border-transparent hover:border-white/80 text-slate-600 hover:text-slate-900 bg-white/10'
-                  }`}>
+                    ? 'hover:bg-white/5 hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] border-transparent hover:border-white/10 text-white/60 hover:text-white'
+                    : 'hover:bg-white/60 hover:shadow-[0_4px_10px_rgba(59,130,246,0.1)] border-transparent hover:border-white/80 text-slate-600 hover:text-slate-900 bg-white/10'
+                    }`}>
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-0 bg-[#3B82F6] transition-all duration-300 group-hover:h-3/5 shadow-[0_0_10px_#3B82F6] opacity-0 group-hover:opacity-100 rounded-r-md"></div>
                   <span className="text-sm truncate max-w-[160px] relative z-10">
                     {chat.title}

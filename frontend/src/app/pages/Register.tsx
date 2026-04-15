@@ -46,9 +46,12 @@ export const Register: React.FC = () => {
         setError(data.detail || 'Registration failed');
         return;
       }
+      // Store token and user data directly
+      sessionStorage.setItem('token', data.access_token);
+      sessionStorage.setItem('user', JSON.stringify({ id: data.id, username: data.username }));
       
-      // Navigate to login
-      navigate('/');
+      // Navigate to dashboard immediately upon registration to avoid forcing an extra login
+      navigate('/dashboard');
     } catch (err) {
       setError('Network error connecting to the server');
     }
