@@ -29,10 +29,12 @@ interface ChatInterfaceProps {
 const PDFPreviewComponent: React.FC<{ url: string; keyword: string; page: number }> = ({ url, keyword, page }) => {
     // Calling searchPlugin at the top level of this standard component securely respects React Hook rules
     const searchPluginInstance = searchPlugin({ keyword });
+    const token = sessionStorage.getItem('token');
     return (
         <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`}>
             <Viewer 
                 fileUrl={url} 
+                httpHeaders={{ 'Authorization': `Bearer ${token}` }}
                 initialPage={Math.max(0, page - 1)}
                 plugins={[searchPluginInstance]} 
                 defaultScale={1.2}
@@ -58,7 +60,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
   useEffect(() => {
     if (chatId) {
       setCurrentChatId(chatId);
-      fetch(`http://127.0.0.1:8000/chats/${chatId}/messages?user_id=1`)
+      const token = sessionStorage.getItem('token');
+      fetch(`http://127.0.0.1:8000/chats/${chatId}/messages`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+      })
         .then(res => res.json())
         .then(data => {
             if (data.messages) {
@@ -104,13 +109,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ vaultName, chatId,
     setIsTyping(true);
 
     try {
-      const userStr = sessionStorage.getItem('user');
-      const activeUserId = userStr ? JSON.parse(userStr).id : 1;
-
+      const token = sessionStorage.getItem('token');
       const res = await fetch('http://127.0.0.1:8000/chat/query', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMessage, vault_name: vaultName, chat_id: currentChatId ? parseInt(currentChatId) : null, user_id: activeUserId }),
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ query: userMessage, vault_name: vaultName, chat_id: currentChatId ? parseInt(currentChatId) : null }),
       });
       const data = await res.json();
       

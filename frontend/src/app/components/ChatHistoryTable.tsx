@@ -21,10 +21,13 @@ export const ChatHistoryTable: React.FC<ChatHistoryTableProps> = ({ userId, isDa
     const fetchFilteredChats = async () => {
       setIsLoading(true);
       try {
-        const queryParams = new URLSearchParams({ user_id: userId.toString() });
+        const queryParams = new URLSearchParams();
         if (searchQuery) queryParams.append('search_query', searchQuery);
         
-        const response = await fetch(`http://127.0.0.1:8000/chats?${queryParams.toString()}`);
+        const token = sessionStorage.getItem('token');
+        const response = await fetch(`http://127.0.0.1:8000/chats?${queryParams.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await response.json();
         setChats(data.chats || []);
       } catch (error) {

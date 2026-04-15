@@ -10,9 +10,9 @@ interface ProtectedRouteProps {
  * If no session is found (e.g. direct URL access), redirects to the login page.
  */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    const user = sessionStorage.getItem('user');
+    const token = sessionStorage.getItem('token');
 
-    if (!user) {
+    if (!token) {
         return <Navigate to="/" replace />;
     }
 

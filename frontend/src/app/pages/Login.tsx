@@ -24,6 +24,7 @@ export const Login: React.FC = () => {
         setError(data.detail || 'Login failed');
         return;
       }
+      sessionStorage.setItem('token', data.access_token);
       sessionStorage.setItem('user', JSON.stringify({ id: data.user_id, username: data.username }));
       navigate('/dashboard');
     } catch (err) {
