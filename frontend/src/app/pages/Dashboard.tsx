@@ -46,6 +46,7 @@ export const Dashboard: React.FC = () => {
       const res = await fetch(`http://127.0.0.1:8000/vaults`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.status === 401) return handleLogout();
       const data = await res.json();
       if (data.vaults) {
         setVaults(data.vaults);
@@ -61,6 +62,7 @@ export const Dashboard: React.FC = () => {
       const res = await fetch(`http://127.0.0.1:8000/chats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.status === 401) return handleLogout();
       const data = await res.json();
       if (data.chats) setChats(data.chats);
     } catch (e) { console.error(e); }
@@ -72,6 +74,7 @@ export const Dashboard: React.FC = () => {
       const res = await fetch(`http://127.0.0.1:8000/users/${userId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.status === 401) return handleLogout();
       const data = await res.json();
       if (data.first_name || data.username) setCurrentUser(data);
     } catch (e) { console.error(e); }
