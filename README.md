@@ -446,12 +446,3 @@ CHUNK_SERVICE = ChunkingService(chunk_size=800, chunk_overlap=150)
 
 ---
 
-## 📜 License
-
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-Built with ❤️ — all inference runs locally on your hardware.
-</div>
